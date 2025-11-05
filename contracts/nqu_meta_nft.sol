@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract NicMeta is ERC721Enumerable, Ownable {
+contract NquMeta is ERC721Enumerable, Ownable {
     using Strings for uint256;
 
     bool public _isSaleActive = false;
@@ -14,7 +14,7 @@ contract NicMeta is ERC721Enumerable, Ownable {
 
     // Constants
     uint256 public constant MAX_SUPPLY = 10;
-    uint256 public mintPrice = 0.3 ether;
+    uint256 public mintPrice = 0.001 ether;
     uint256 public maxBalance = 1;
     uint256 public maxMint = 1;
 
@@ -25,18 +25,19 @@ contract NicMeta is ERC721Enumerable, Ownable {
     mapping(uint256 => string) private _tokenURIs;
 
     constructor(string memory initBaseURI, string memory initNotRevealedUri)
-        ERC721("Nic Meta", "NM")
+        ERC721("NQU Meta", "NQUCoin")
+        Ownable(msg.sender) // <-- Add this line
     {
         setBaseURI(initBaseURI);
         setNotRevealedURI(initNotRevealedUri);
     }
 
-    function mintNicMeta(uint256 tokenQuantity) public payable {
+    function mintNquMeta(uint256 tokenQuantity) public payable {
         require(
             totalSupply() + tokenQuantity <= MAX_SUPPLY,
             "Sale would exceed max supply"
         );
-        require(_isSaleActive, "Sale must be active to mint NicMetas");
+        require(_isSaleActive, "Sale must be active to mint NQU Metas");
         require(
             balanceOf(msg.sender) + tokenQuantity <= maxBalance,
             "Sale would exceed max balance"
@@ -47,10 +48,10 @@ contract NicMeta is ERC721Enumerable, Ownable {
         );
         require(tokenQuantity <= maxMint, "Can only mint 1 tokens at a time");
 
-        _mintNicMeta(tokenQuantity);
+        _mintNquMeta(tokenQuantity);
     }
 
-    function _mintNicMeta(uint256 tokenQuantity) internal {
+    function _mintNquMeta(uint256 tokenQuantity) internal {
         for (uint256 i = 0; i < tokenQuantity; i++) {
             uint256 mintIndex = totalSupply();
             if (totalSupply() < MAX_SUPPLY) {
@@ -67,7 +68,7 @@ contract NicMeta is ERC721Enumerable, Ownable {
         returns (string memory)
     {
         require(
-            _exists(tokenId),
+            _ownerOf(tokenId) != address(0), 
             "ERC721Metadata: URI query for nonexistent token"
         );
 
