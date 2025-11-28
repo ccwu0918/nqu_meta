@@ -1,0 +1,415 @@
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NquMeta NFT Minting DApp</title>
+    
+    <!-- 1. 載入必要的函式庫 (React, Ethers, Babel) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Ethers.js v6 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+
+    <!-- 2. 內嵌樣式 (解決 App.css 讀取錯誤) -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a; /* 深藍黑背景 */
+            color: #e2e8f0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid #334155;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .stats-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 30px 0;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #f1f5f9;
+        }
+
+        button {
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .connect-btn {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+
+        .connect-btn:hover {
+            background: #2563eb;
+        }
+
+        .address-display {
+            background: #334155;
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+        }
+
+        .quantity-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .quantity-selector button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #475569;
+            background: transparent;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .quantity-selector button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .quantity-selector span {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .mint-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .mint-btn:disabled {
+            background: #475569;
+            box-shadow: none;
+            cursor: wait;
+        }
+
+        .mint-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .status-message {
+            margin-top: 20px;
+            min-height: 24px;
+            font-size: 0.9rem;
+        }
+
+        .error-text {
+            color: #ef4444;
+        }
+
+        .info-text {
+            color: #10b981;
+        }
+
+        .audit-badge {
+            margin-top: 30px;
+            font-size: 0.75rem;
+            color: #475569;
+            border-top: 1px solid #334155;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- 3. React 邏輯 (Babel 編譯) -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        // 在 HTML CDN 環境下，ethers 是全域變數
+        const ethers = window.ethers;
+
+        // ⚠️ 請替換成您在 Remix 部署後的合約地址
+        const CONTRACT_ADDRESS = "0x0FfFF4a1Ef4857047b717419702228DC92FFf09A";
+
+        const CONTRACT_ABI = [
+            "function mintNquMeta(uint256 tokenQuantity) public payable",
+            "function totalSupply() view returns (uint256)",
+            "function MAX_SUPPLY() view returns (uint256)",
+            "function _isSaleActive() view returns (bool)"
+        ];
+
+        function App() {
+            const [account, setAccount] = useState(null);
+            const [isConnecting, setIsConnecting] = useState(false);
+            const [isMinting, setIsMinting] = useState(false);
+            const [supply, setSupply] = useState(0);
+            const [quantity, setQuantity] = useState(1);
+            const [status, setStatus] = useState("");
+            const [error, setError] = useState("");
+
+            useEffect(() => {
+                checkIfWalletIsConnected();
+                if (window.ethereum) {
+                    window.ethereum.on('accountsChanged', handleAccountsChanged);
+                }
+                return () => {
+                    if (window.ethereum) {
+                        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+                    }
+                };
+            }, []);
+
+            const handleAccountsChanged = (accounts) => {
+                if (accounts.length > 0) {
+                    setAccount(accounts[0]);
+                    fetchContractData();
+                } else {
+                    setAccount(null);
+                    setStatus("請連接錢包");
+                }
+            };
+
+            const checkIfWalletIsConnected = async () => {
+                if (window.ethereum) {
+                    try {
+                        const provider = new ethers.BrowserProvider(window.ethereum);
+                        const accounts = await provider.listAccounts();
+                        if (accounts.length > 0) {
+                            setAccount(accounts[0].address);
+                            fetchContractData();
+                        }
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            };
+
+            const connectWallet = async () => {
+                // 修正：更友善的錯誤提示
+                if (typeof window.ethereum === 'undefined') {
+                    setError("未偵測到 MetaMask。如果您在預覽視窗中，請點擊右上角「在分頁中開啟」或下載檔案執行。");
+                    return; // 不再使用 alert 阻斷體驗
+                }
+
+                setIsConnecting(true);
+                try {
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const accounts = await provider.send("eth_requestAccounts", []);
+                    
+                    if (accounts && accounts.length > 0) {
+                        setAccount(accounts[0]);
+                        setError("");
+                        setStatus("錢包連接成功 🟢");
+                        await fetchContractData();
+                    } else {
+                        setError("未選擇任何帳號");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    setError("連接失敗或使用者拒絕");
+                } finally {
+                    setIsConnecting(false);
+                }
+            };
+
+            const fetchContractData = async () => {
+                if (!window.ethereum) return;
+                try {
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+
+                    const total = await contract.totalSupply();
+                    setSupply(total.toString());
+                    
+                    const isActive = await contract._isSaleActive();
+                    if (!isActive) setStatus("⚠️ 注意：目前販售尚未開啟 (Sale is Paused)");
+                    else setStatus("🟢 販售進行中 (Sale is Active)");
+
+                } catch (err) {
+                    console.error("讀取合約數據失敗:", err);
+                    // 這裡不顯示錯誤給使用者，避免未部署合約時一直報錯
+                }
+            };
+
+            const mintNFT = async () => {
+                if (!account) return;
+                setIsMinting(true);
+                setError("");
+                setStatus("等待錢包確認中... 🦊");
+
+                try {
+                    const provider = new ethers.BrowserProvider(window.ethereum);
+                    const signer = await provider.getSigner();
+                    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                    const pricePerToken = ethers.parseEther("0.0001");
+                    const totalPrice = pricePerToken * BigInt(quantity);
+
+                    console.log(`Minting ${quantity} tokens for ${ethers.formatEther(totalPrice)} ETH`);
+
+                    const tx = await contract.mintNquMeta(quantity, {
+                        value: totalPrice
+                    });
+
+                    setStatus("交易發送成功！區塊確認中... 🧱");
+                    
+                    await tx.wait(1);
+
+                    setStatus(`🎉 鑄造成功！恭喜獲得 ${quantity} 個 NquMeta NFT!`);
+                    fetchContractData(); 
+
+                } catch (err) {
+                    console.error(err);
+                    if (err.reason) {
+                        setError(`合約錯誤: ${err.reason}`);
+                    } else if (err.code === "ACTION_REJECTED") {
+                        setError("使用者拒絕了交易");
+                    } else {
+                        setError("交易失敗，請檢查餘額或網路狀態");
+                    }
+                } finally {
+                    setIsMinting(false);
+                }
+            };
+
+            return (
+                <div className="app-container">
+                    <div className="card">
+                        <header>
+                            <h1>💎 NquMeta NFT</h1>
+                            <p className="subtitle">ERC721A Gas Optimized Collection</p>
+                        </header>
+
+                        <div className="stats-container">
+                            <div className="stat-box">
+                                <span className="label">已鑄造</span>
+                                <span className="value">{supply} / 10</span>
+                            </div>
+                            <div className="stat-box">
+                                <span className="label">價格</span>
+                                <span className="value">0.0001 ETH</span>
+                            </div>
+                        </div>
+
+                        {!account ? (
+                            <button 
+                                className="connect-btn" 
+                                onClick={connectWallet}
+                                disabled={isConnecting}
+                            >
+                                {isConnecting ? "連接中..." : "連接錢包 (Connect Wallet)"}
+                            </button>
+                        ) : (
+                            <div className="mint-interface">
+                                <p className="address-display">
+                                    已連接: {account.slice(0, 6)}...{account.slice(-4)}
+                                </p>
+                                
+                                <div className="quantity-selector">
+                                    <button 
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                        disabled={isMinting || quantity <= 1}
+                                    > - </button>
+                                    <span>{quantity}</span>
+                                    <button 
+                                        onClick={() => setQuantity(Math.min(5, quantity + 1))} 
+                                        disabled={isMinting || quantity >= 5}
+                                    > + </button>
+                                </div>
+
+                                <button 
+                                    className="mint-btn"
+                                    onClick={mintNFT}
+                                    disabled={isMinting}
+                                >
+                                    {isMinting ? "鑄造中 (Minting)..." : `立即鑄造 ${quantity} 個`}
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="status-message">
+                            {error && <p className="error-text">{error}</p>}
+                            {status && <p className="info-text">{status}</p>}
+                        </div>
+                        
+                        <div className="audit-badge">
+                            🛡️ Audited & Gas Optimized
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
