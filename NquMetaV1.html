@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NquMeta NFT Minting DApp</title>
-    
+
     <!-- 1. 載入必要的函式庫 (React, Ethers, Babel) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -197,7 +197,8 @@
         const ethers = window.ethers;
 
         // ⚠️ 請替換成您在 Remix 部署後的合約地址
-        const CONTRACT_ADDRESS = "0x0FfFF4a1Ef4857047b717419702228DC92FFf09A";
+        // ⚠️ 合約地址 "0x0FfFF4a1Ef4857047b717419702228DC92FFf09A"
+        const CONTRACT_ADDRESS = "0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF";
 
         const CONTRACT_ABI = [
             "function mintNquMeta(uint256 tokenQuantity) public payable",
@@ -263,7 +264,7 @@
                 try {
                     const provider = new ethers.BrowserProvider(window.ethereum);
                     const accounts = await provider.send("eth_requestAccounts", []);
-                    
+
                     if (accounts && accounts.length > 0) {
                         setAccount(accounts[0]);
                         setError("");
@@ -288,7 +289,7 @@
 
                     const total = await contract.totalSupply();
                     setSupply(total.toString());
-                    
+
                     const isActive = await contract._isSaleActive();
                     if (!isActive) setStatus("⚠️ 注意：目前販售尚未開啟 (Sale is Paused)");
                     else setStatus("🟢 販售進行中 (Sale is Active)");
@@ -320,11 +321,11 @@
                     });
 
                     setStatus("交易發送成功！區塊確認中... 🧱");
-                    
+
                     await tx.wait(1);
 
                     setStatus(`🎉 鑄造成功！恭喜獲得 ${quantity} 個 NquMeta NFT!`);
-                    fetchContractData(); 
+                    fetchContractData();
 
                 } catch (err) {
                     console.error(err);
@@ -360,8 +361,8 @@
                         </div>
 
                         {!account ? (
-                            <button 
-                                className="connect-btn" 
+                            <button
+                                className="connect-btn"
                                 onClick={connectWallet}
                                 disabled={isConnecting}
                             >
@@ -372,20 +373,20 @@
                                 <p className="address-display">
                                     已連接: {account.slice(0, 6)}...{account.slice(-4)}
                                 </p>
-                                
+
                                 <div className="quantity-selector">
-                                    <button 
+                                    <button
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
                                         disabled={isMinting || quantity <= 1}
                                     > - </button>
                                     <span>{quantity}</span>
-                                    <button 
-                                        onClick={() => setQuantity(Math.min(5, quantity + 1))} 
+                                    <button
+                                        onClick={() => setQuantity(Math.min(5, quantity + 1))}
                                         disabled={isMinting || quantity >= 5}
                                     > + </button>
                                 </div>
 
-                                <button 
+                                <button
                                     className="mint-btn"
                                     onClick={mintNFT}
                                     disabled={isMinting}
@@ -399,7 +400,7 @@
                             {error && <p className="error-text">{error}</p>}
                             {status && <p className="info-text">{status}</p>}
                         </div>
-                        
+
                         <div className="audit-badge">
                             🛡️ Audited & Gas Optimized
                         </div>
