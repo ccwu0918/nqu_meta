@@ -20,7 +20,7 @@ contract NquMeta is ERC721A, Ownable, ReentrancyGuard {
     uint256 public maxBalance = 1;
     uint256 public maxMint = 1;
 
-    string baseURI;
+    string public baseURI;
     string public notRevealedUri;
     string public baseExtension = ".json";
 
