@@ -1,0 +1,39 @@
+{
+  "name": "NQU Meta #2",
+  "description": "NQU NFTs",
+  "image": "https://ipfs.io/ipfs/bafybeib2u2mk2cmexig4i2ip6khx3ht4ez7wmiwlstxiblfljrlhx7gwoe/2.png",
+  "dna": "f5442e9d373d9d1d93d089e18fdf3584cb4fe44b",
+  "edition": 2,
+  "date": 1764330263654,
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Black"
+    },
+    {
+      "trait_type": "Eyeball",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Eye color",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Iris",
+      "value": "Small"
+    },
+    {
+      "trait_type": "Shine",
+      "value": "Shapes"
+    },
+    {
+      "trait_type": "Bottom lid",
+      "value": "Low"
+    },
+    {
+      "trait_type": "Top lid",
+      "value": "Middle"
+    }
+  ],
+  "compiler": "HashLips Art Engine"
+}
