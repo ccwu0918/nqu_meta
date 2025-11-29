@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NQU Meta - 盲盒NFT Minting DApp</title>
+    <title>💎NQU Meta - 盲盒 NFT 鑄造平台 NFT Minting DApp</title>
     
     <!-- 1. 載入必要的函式庫 -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
@@ -32,14 +32,51 @@
         header h1 {
             margin: 0; background: linear-gradient(to right, #60a5fa, #a78bfa);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            font-size: 2.5rem; font-weight: 800;
+            font-size: 2.0rem; font-weight: 800; /* Slightly smaller to fit longer text */
         }
 
         .subtitle { color: #94a3b8; margin-top: 5px; font-size: 0.9rem; }
 
+        /* --- 錢包資訊列 --- */
+        .wallet-info-container {
+            display: flex; justify-content: center; gap: 8px; margin: 25px 0 10px 0;
+            flex-wrap: wrap; align-items: center;
+        }
+
+        .wallet-badge {
+            padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .badge-status {
+            background-color: #f8fafc; color: #0f172a; /* 白底黑字 */
+        }
+
+        .badge-chain {
+            background-color: #3b82f6; color: white; /* 亮藍底白字 */
+        }
+
+        .badge-address {
+            background-color: #334155; color: #e2e8f0; /* 深藍灰底白字 */
+            font-family: monospace;
+        }
+
+        /* 新增：斷開按鈕樣式 */
+        .badge-disconnect {
+            background-color: #ef4444; color: white; cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .badge-disconnect:hover {
+            background-color: #dc2626;
+        }
+
+        .connection-dot {
+            width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%;
+        }
+
         /* --- 狀態與統計 --- */
         .stats-container {
-            display: flex; justify-content: space-between; margin: 30px 0;
+            display: flex; justify-content: space-between; margin: 20px 0 30px 0;
             background: #0f172a; padding: 15px; border-radius: 12px;
         }
         .stat-box { display: flex; flex-direction: column; }
@@ -175,7 +212,7 @@
         const ethers = window.ethers;
 
         // 預設合約地址
-        const DEFAULT_ADDRESS = "0x0FfFF4a1Ef4857047b717419702228DC92FFf09A";
+        const DEFAULT_ADDRESS = "0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF";
 
         // ⚠️ ABI
         const CONTRACT_ABI = [
@@ -268,10 +305,7 @@
                     setAccount(accounts[0]);
                     fetchContractData(accounts[0], targetContractAddress);
                 } else {
-                    setAccount(null);
-                    setIsOwner(false);
-                    setStatus("請連接錢包");
-                    setUserNFTs([]);
+                    disconnectWallet();
                 }
             };
 
@@ -310,6 +344,21 @@
                 } finally {
                     setIsConnecting(false);
                 }
+            };
+
+            // 新增：斷開錢包連接 (清除本地狀態)
+            const disconnectWallet = () => {
+                setAccount(null);
+                setIsOwner(false);
+                setUserNFTs([]);
+                setStatus("錢包已斷開");
+                setError("");
+                // 清空 Admin 輸入框
+                setNewMintPrice("");
+                setNewMaxBalance("");
+                setNewMaxMint("");
+                setNewNotRevealedURI("");
+                setNewBaseURI("");
             };
             
             // Update Contract Address Handler
@@ -566,7 +615,7 @@
                 <div className="app-container">
                     <div className="card">
                         <header>
-                            <h1>💎 NQU Meta - 盲盒NFT Minting DApp</h1>
+                            <h1>💎NQU Meta - 盲盒 NFT 鑄造平台</h1>
                             <p className="subtitle">ERC721A Gas Optimized Collection</p>
                         </header>
 
@@ -649,6 +698,24 @@
                                         />
                                         <button className="admin-btn" onClick={handleUpdateBaseURI} disabled={isAdminAction}>更新</button>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {account && (
+                            <div className="wallet-info-container">
+                                <div className="wallet-badge badge-status">
+                                    <span className="connection-dot"></span>
+                                    已連接
+                                </div>
+                                <div className="wallet-badge badge-chain">
+                                    Ethereum
+                                </div>
+                                <div className="wallet-badge badge-address">
+                                    {account.slice(0, 6)}...{account.slice(-4)}
+                                </div>
+                                <div className="wallet-badge badge-disconnect" onClick={disconnectWallet} title="斷開連接">
+                                    🔌 斷開
                                 </div>
                             </div>
                         )}
