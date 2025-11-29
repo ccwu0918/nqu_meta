@@ -163,6 +163,11 @@
         }
         .ai-result-box img { max-width: 100%; border-radius: 8px; }
         .ai-result-box p { margin-bottom: 8px; }
+        .ai-error-box {
+            background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444;
+            color: #fca5a5; padding: 10px; border-radius: 8px; margin-top: 10px;
+            font-size: 0.85rem; text-align: left;
+        }
 
         /* --- NFT Grid --- */
         .nft-grid {
@@ -211,7 +216,7 @@
         const ethers = window.ethers;
 
         // Gemini API Key (Inject from environment)
-        const DEFAULT_API_KEY = "AIza**********************************t5Vs"; 
+        const DEFAULT_API_KEY = "AIza********************************t5Vs"; 
 
         // 預設合約地址
         const DEFAULT_ADDRESS = "0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF";
@@ -282,8 +287,19 @@
                 });
                 
                 if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`API Error: ${response.status} - ${errText}`);
+                    const errJson = await response.json();
+                    let errMsg = `API Error: ${response.status}`;
+                    
+                    // 嘗試解析 Google API 的錯誤訊息
+                    if (errJson.error && errJson.error.message) {
+                        errMsg = errJson.error.message;
+                        // 特別處理 Billing 錯誤
+                        if (errMsg.includes("billed users")) {
+                            errMsg = "⚠️ 此 API Key 的 Google Cloud 專案未啟用計費功能。Imagen 模型需要綁定付款方式才能使用。請升級您的 Google Cloud 帳戶。";
+                        }
+                    }
+                    
+                    return { success: false, error: errMsg };
                 }
                 
                 const data = await response.json();
@@ -322,6 +338,7 @@
             // AI Admin State
             const [generatedAdminImage, setGeneratedAdminImage] = useState(null);
             const [isGeneratingAdminImage, setIsGeneratingAdminImage] = useState(false);
+            const [adminImageError, setAdminImageError] = useState(""); // 新增錯誤訊息狀態
             
             const [status, setStatus] = useState("");
             const [error, setError] = useState("");
@@ -410,6 +427,7 @@
                 setNewNotRevealedURI("");
                 setNewBaseURI("");
                 setGeneratedAdminImage(null);
+                setAdminImageError("");
             };
             
             const handleUpdateContractAddress = () => {
@@ -499,6 +517,7 @@
                 if (!apiKey) return alert("請先設定 API Key");
                 setIsGeneratingAdminImage(true);
                 setGeneratedAdminImage(null);
+                setAdminImageError(""); // 清除舊錯誤
                 
                 const prompt = "A high quality, cyberpunk style promotional image for a NFT project named NquMeta. Featuring a glowing mysterious blind box, neon lights, futuristic city background, digital art, 4k resolution.";
                 
@@ -507,7 +526,7 @@
                 if (result.success) {
                     setGeneratedAdminImage(result.imageUrl);
                 } else {
-                    alert(`圖片生成失敗: ${result.error}`);
+                    setAdminImageError(result.error);
                 }
                 setIsGeneratingAdminImage(false);
             };
@@ -732,6 +751,11 @@
                                     <button className="ai-btn" onClick={handleGenerateAdminImage} disabled={isGeneratingAdminImage}>
                                         {isGeneratingAdminImage ? "生成中..." : "✨ 生成圖片"}
                                     </button>
+                                    {adminImageError && (
+                                        <div className="ai-error-box">
+                                            {adminImageError}
+                                        </div>
+                                    )}
                                     {generatedAdminImage && (
                                         <div className="ai-result-box">
                                             <img src={generatedAdminImage} alt="Generated Admin Asset" />
