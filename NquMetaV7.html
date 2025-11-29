@@ -10,6 +10,8 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+    <!-- Markdown 解析器 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <style>
         /* --- 基礎樣式 --- */
@@ -32,10 +34,22 @@
         header h1 {
             margin: 0; background: linear-gradient(to right, #60a5fa, #a78bfa);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            font-size: 2.0rem; font-weight: 800; /* Slightly smaller to fit longer text */
+            font-size: 2.0rem; font-weight: 800;
         }
 
         .subtitle { color: #94a3b8; margin-top: 5px; font-size: 0.9rem; }
+
+        /* --- API Key Input --- */
+        .api-key-section {
+            background: rgba(15, 23, 42, 0.6); padding: 15px; border-radius: 12px;
+            margin: 20px 0; border: 1px dashed #475569; text-align: left;
+        }
+        .api-key-label { font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; display: block; font-weight: 600; }
+        .api-key-input {
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #475569;
+            background: #0f172a; color: white; font-family: monospace; box-sizing: border-box;
+        }
+        .api-key-input:focus { border-color: #a855f7; outline: none; }
 
         /* --- 錢包資訊列 --- */
         .wallet-info-container {
@@ -48,31 +62,15 @@
             display: flex; align-items: center; gap: 6px;
         }
 
-        .badge-status {
-            background-color: #f8fafc; color: #0f172a; /* 白底黑字 */
-        }
-
-        .badge-chain {
-            background-color: #3b82f6; color: white; /* 亮藍底白字 */
-        }
-
-        .badge-address {
-            background-color: #334155; color: #e2e8f0; /* 深藍灰底白字 */
-            font-family: monospace;
-        }
-
-        /* 新增：斷開按鈕樣式 */
+        .badge-status { background-color: #f8fafc; color: #0f172a; }
+        .badge-chain { background-color: #3b82f6; color: white; }
+        .badge-address { background-color: #334155; color: #e2e8f0; font-family: monospace; }
         .badge-disconnect {
             background-color: #ef4444; color: white; cursor: pointer;
             transition: background-color 0.2s;
         }
-        .badge-disconnect:hover {
-            background-color: #dc2626;
-        }
-
-        .connection-dot {
-            width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%;
-        }
+        .badge-disconnect:hover { background-color: #dc2626; }
+        .connection-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; }
 
         /* --- 狀態與統計 --- */
         .stats-container {
@@ -114,37 +112,23 @@
 
         /* --- Admin Panel --- */
         .admin-panel {
-            background: #312e81; /* 深紫色背景區隔 */
-            border: 1px solid #6366f1;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 25px;
-            text-align: left;
+            background: #312e81; border: 1px solid #6366f1; border-radius: 12px;
+            padding: 15px; margin-bottom: 25px; text-align: left;
         }
         .admin-title { font-size: 0.9rem; color: #a5b4fc; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
         
         .admin-controls { display: grid; gap: 15px; }
-        
         .admin-row {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
             background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;
         }
         .admin-label { font-size: 0.8rem; color: #cbd5e1; flex: 1; }
-        .admin-current { font-size: 0.75rem; color: #94a3b8; margin-right: 5px; display: none; /* Hide current span as value is now in input */ }
-        
         .admin-input {
             width: 120px; padding: 6px; border-radius: 4px; border: 1px solid #475569;
             background: #1e293b; color: white; font-size: 0.8rem; text-align: right;
         }
-        
-        .admin-input-long {
-            flex: 2; text-align: left; /* URI 輸入框樣式 */
-        }
-        
-        .admin-input-full {
-             width: 100%; text-align: left; font-family: monospace; font-size: 0.75rem;
-        }
-
+        .admin-input-long { flex: 2; text-align: left; }
+        .admin-input-full { width: 100%; text-align: left; font-family: monospace; font-size: 0.75rem; }
         .admin-btn {
             padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; color: white;
             background: #4f46e5; border: none; white-space: nowrap;
@@ -158,10 +142,27 @@
             display: flex; align-items: center; justify-content: center; margin-bottom: 10px;
         }
         .toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
-
         .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
         .status-on { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
         .status-off { background-color: #ef4444; }
+
+        /* --- AI Feature Styles --- */
+        .ai-btn {
+            background: linear-gradient(135deg, #a855f7, #d946ef);
+            color: white; border: none; padding: 8px 12px; border-radius: 8px;
+            font-size: 0.85rem; width: 100%; margin-top: 10px;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .ai-btn:hover { opacity: 0.9; transform: scale(1.02); }
+        .ai-btn:disabled { background: #475569; transform: none; cursor: wait; }
+        
+        .ai-result-box {
+            background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px;
+            border: 1px solid #a855f7; font-size: 0.85rem; line-height: 1.5; text-align: left;
+            max-height: 300px; overflow-y: auto; color: #e2e8f0;
+        }
+        .ai-result-box img { max-width: 100%; border-radius: 8px; }
+        .ai-result-box p { margin-bottom: 8px; }
 
         /* --- NFT Grid --- */
         .nft-grid {
@@ -176,7 +177,6 @@
         }
         .nft-card:hover { transform: translateY(-3px); border-color: #6366f1; }
         
-        /* 圖片容器 */
         .nft-image-box {
             width: 100%; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
             background: #1e293b; margin-bottom: 10px;
@@ -185,7 +185,6 @@
         }
         .nft-image { width: 100%; height: 100%; object-fit: cover; }
         .nft-placeholder { font-size: 2rem; }
-        
         .nft-id { font-size: 1rem; font-weight: bold; color: #a78bfa; margin-bottom: 5px; }
         
         .transfer-input {
@@ -216,7 +215,6 @@
 
         // ⚠️ ABI
         const CONTRACT_ABI = [
-            // User Functions
             "function mintNquMeta(uint256 tokenQuantity) public payable",
             "function totalSupply() view returns (uint256)",
             "function MAX_SUPPLY() view returns (uint256)",
@@ -225,13 +223,11 @@
             "function tokenURI(uint256 tokenId) view returns (string)",
             "function _isSaleActive() view returns (bool)",
             "function _revealed() view returns (bool)",
-            // Config Getters
             "function mintPrice() view returns (uint256)",
             "function maxBalance() view returns (uint256)",
             "function maxMint() view returns (uint256)",
             "function notRevealedUri() view returns (string)", 
-            "function baseURI() view returns (string)",        // 用戶確認合約中已有 public baseURI
-            // Admin Functions
+            "function baseURI() view returns (string)",
             "function owner() view returns (address)",
             "function flipSaleActive() public",
             "function flipReveal() public",
@@ -242,30 +238,79 @@
             "function setBaseURI(string memory _newBaseURI) public"
         ];
 
-        function App() {
-            // Contract Address State
-            const [targetContractAddress, setTargetContractAddress] = useState(DEFAULT_ADDRESS);
+        // --- Gemini AI (Text) Helper Function ---
+        async function callGeminiAPI(apiKey, prompt) {
+            if (!apiKey) return "⚠️ 請先設定 API Key";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+            } catch (error) {
+                console.error("Gemini AI Error:", error);
+                return "❌ 生成失敗，請檢查 API Key 或網路連線。";
+            }
+        }
+
+        // --- Imagen AI (Image) Helper Function ---
+        async function callImagenAPI(apiKey, prompt) {
+            if (!apiKey) return null;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        instances: [{ prompt: prompt }], 
+                        parameters: { sampleCount: 1 } 
+                    })
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+                if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
+                    return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+                }
+                return null;
+            } catch (error) {
+                console.error("Imagen AI Error:", error);
+                return null;
+            }
+        }
+
+        function App() {
+            const [targetContractAddress, setTargetContractAddress] = useState(DEFAULT_ADDRESS);
             const [account, setAccount] = useState(null);
             const [isOwner, setIsOwner] = useState(false);
             const [isConnecting, setIsConnecting] = useState(false);
             const [isMinting, setIsMinting] = useState(false);
+            const [apiKey, setApiKey] = useState("");
             
             const [supply, setSupply] = useState(0);
             const [quantity, setQuantity] = useState(1);
             const [isSaleActive, setIsSaleActive] = useState(false);
             const [isRevealed, setIsRevealed] = useState(false);
-            
-            // Display Values
             const [currentMintPrice, setCurrentMintPrice] = useState("0");
 
-            // Admin Input State (Auto-filled)
+            // Admin Input State
             const [newMintPrice, setNewMintPrice] = useState("");
             const [newMaxBalance, setNewMaxBalance] = useState("");
             const [newMaxMint, setNewMaxMint] = useState("");
             const [newNotRevealedURI, setNewNotRevealedURI] = useState("");
             const [newBaseURI, setNewBaseURI] = useState("");
-            const [inputAddress, setInputAddress] = useState(DEFAULT_ADDRESS); // UI input for address
+            const [inputAddress, setInputAddress] = useState(DEFAULT_ADDRESS);
+            
+            // AI Admin State
+            const [generatedAdminImage, setGeneratedAdminImage] = useState(null);
+            const [isGeneratingAdminImage, setIsGeneratingAdminImage] = useState(false);
             
             const [status, setStatus] = useState("");
             const [error, setError] = useState("");
@@ -275,8 +320,6 @@
 
             const accountRef = useRef(account);
             accountRef.current = account;
-            
-            // Ref for address to be used in interval
             const contractAddressRef = useRef(targetContractAddress);
             contractAddressRef.current = targetContractAddress;
 
@@ -285,13 +328,11 @@
                 if (window.ethereum) {
                     window.ethereum.on('accountsChanged', handleAccountsChanged);
                 }
-                
                 const intervalId = setInterval(() => {
                     if (accountRef.current) {
                         fetchContractData(accountRef.current, contractAddressRef.current, true); 
                     }
                 }, 30000);
-
                 return () => {
                     if (window.ethereum) {
                         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
@@ -346,31 +387,27 @@
                 }
             };
 
-            // 新增：斷開錢包連接 (清除本地狀態)
             const disconnectWallet = () => {
                 setAccount(null);
                 setIsOwner(false);
                 setUserNFTs([]);
                 setStatus("錢包已斷開");
                 setError("");
-                // 清空 Admin 輸入框
                 setNewMintPrice("");
                 setNewMaxBalance("");
                 setNewMaxMint("");
                 setNewNotRevealedURI("");
                 setNewBaseURI("");
+                setGeneratedAdminImage(null);
             };
             
-            // Update Contract Address Handler
             const handleUpdateContractAddress = () => {
                 if(!ethers.isAddress(inputAddress)) return alert("無效的合約地址");
                 setTargetContractAddress(inputAddress);
                 setStatus(`合約地址已更新，重新讀取中...`);
-                // Clear previous data
                 setSupply(0);
                 setIsOwner(false);
                 setUserNFTs([]);
-                // Fetch new data
                 if(account) {
                     fetchContractData(account, inputAddress);
                 }
@@ -382,18 +419,15 @@
                     const provider = new ethers.BrowserProvider(window.ethereum);
                     const contract = new ethers.Contract(addressToFetch, CONTRACT_ABI, provider);
 
-                    // 1. Basic Stats
                     const total = await contract.totalSupply();
                     const saleActive = await contract._isSaleActive();
                     const revealed = await contract._revealed();
                     const contractOwner = await contract.owner();
                     
-                    // 2. Configs
                     const price = await contract.mintPrice();
                     const balanceLimit = await contract.maxBalance();
                     const mintLimit = await contract.maxMint();
 
-                    // 3. Update States
                     setSupply(total.toString());
                     setIsSaleActive(saleActive);
                     setIsRevealed(revealed);
@@ -401,18 +435,14 @@
                     const priceInEther = ethers.formatEther(price);
                     setCurrentMintPrice(priceInEther);
 
-                    // Auto-fill inputs if they are empty or just update them to current state (Sync)
                     if (!isBackground) {
                         setNewMintPrice(priceInEther);
                         setNewMaxBalance(balanceLimit.toString());
                         setNewMaxMint(mintLimit.toString());
-
-                        // Fetch URIs (Try/Catch in case contract doesn't expose getters)
                         try {
                             const notRev = await contract.notRevealedUri();
                             setNewNotRevealedURI(notRev);
                         } catch (e) { console.log("Fetch notRevealedUri failed", e); }
-
                         try {
                             const base = await contract.baseURI(); 
                             setNewBaseURI(base);
@@ -425,7 +455,6 @@
                         setIsOwner(false);
                     }
 
-                    // Status Messages
                     if (!isBackground) {
                          if (!saleActive) setStatus("⚠️ 販售暫停中 (Paused)");
                          else setStatus("🟢 販售進行中 (Active)");
@@ -454,7 +483,24 @@
                 }
             };
 
-            const toggleSale = async () => {
+            // AI Function: Generate Admin Image
+            const handleGenerateAdminImage = async () => {
+                if (!apiKey) return alert("請先設定 API Key");
+                setIsGeneratingAdminImage(true);
+                const prompt = "A high quality, cyberpunk style promotional image for a NFT project named NquMeta. Featuring a glowing mysterious blind box, neon lights, futuristic city background, digital art, 4k resolution.";
+                
+                const imageUrl = await callImagenAPI(apiKey, prompt);
+                
+                if (imageUrl) {
+                    setGeneratedAdminImage(imageUrl);
+                } else {
+                    alert("圖片生成失敗，請檢查 API Key 或稍後再試。");
+                }
+                setIsGeneratingAdminImage(false);
+            };
+
+            // Admin Actions
+            const toggleSale = async () => { /* ... existing toggleSale code ... */ 
                 if (!isOwner) return;
                 setIsAdminAction(true);
                 try {
@@ -466,16 +512,11 @@
                     await tx.wait();
                     setStatus("✅ 販售狀態已更新");
                     fetchContractData(account, targetContractAddress);
-                } catch (err) {
-                    console.error(err);
-                    alert("操作失敗");
-                } finally { setIsAdminAction(false); }
+                } catch (err) { alert("操作失敗"); } finally { setIsAdminAction(false); }
             };
-
-            const toggleReveal = async () => {
+            const toggleReveal = async () => { /* ... existing toggleReveal code ... */ 
                 if (!isOwner) return;
                 if (!confirm("確定要開啟盲盒嗎？這是一個全域設定，所有 NFT 都將被揭示。")) return;
-                
                 setIsAdminAction(true);
                 try {
                     const provider = new ethers.BrowserProvider(window.ethereum);
@@ -486,14 +527,9 @@
                     await tx.wait();
                     setStatus("✅ 盲盒已開啟！");
                     fetchContractData(account, targetContractAddress);
-                } catch (err) {
-                    console.error(err);
-                    alert("操作失敗");
-                } finally { setIsAdminAction(false); }
+                } catch (err) { alert("操作失敗"); } finally { setIsAdminAction(false); }
             };
-
-            // --- Admin Config Updates ---
-            const handleUpdatePrice = async () => {
+            const handleUpdatePrice = async () => { /* ... */ 
                 if (!newMintPrice) return alert("請輸入價格");
                 setIsAdminAction(true);
                 try {
@@ -508,8 +544,7 @@
                     fetchContractData(account, targetContractAddress);
                 } catch (err) { alert("更新失敗"); } finally { setIsAdminAction(false); }
             };
-
-            const handleUpdateMaxBalance = async () => {
+            const handleUpdateMaxBalance = async () => { /* ... */ 
                 if (!newMaxBalance) return alert("請輸入數量");
                 setIsAdminAction(true);
                 try {
@@ -523,8 +558,7 @@
                     fetchContractData(account, targetContractAddress);
                 } catch (err) { alert("更新失敗"); } finally { setIsAdminAction(false); }
             };
-
-            const handleUpdateMaxMint = async () => {
+            const handleUpdateMaxMint = async () => { /* ... */ 
                 if (!newMaxMint) return alert("請輸入數量");
                 setIsAdminAction(true);
                 try {
@@ -538,8 +572,7 @@
                     fetchContractData(account, targetContractAddress);
                 } catch (err) { alert("更新失敗"); } finally { setIsAdminAction(false); }
             };
-
-            const handleUpdateNotRevealedURI = async () => {
+            const handleUpdateNotRevealedURI = async () => { /* ... */ 
                 if (!newNotRevealedURI) return alert("請輸入 URI");
                 setIsAdminAction(true);
                 try {
@@ -553,8 +586,7 @@
                     fetchContractData(account, targetContractAddress);
                 } catch (err) { console.error(err); alert("更新失敗"); } finally { setIsAdminAction(false); }
             };
-
-            const handleUpdateBaseURI = async () => {
+            const handleUpdateBaseURI = async () => { /* ... */ 
                 if (!newBaseURI) return alert("請輸入 URI");
                 setIsAdminAction(true);
                 try {
@@ -578,10 +610,8 @@
                     const provider = new ethers.BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     const contract = new ethers.Contract(targetContractAddress, CONTRACT_ABI, signer);
-                    
                     const priceInWei = ethers.parseEther(currentMintPrice); 
                     const totalPrice = priceInWei * BigInt(quantity);
-                    
                     const tx = await contract.mintNquMeta(quantity, { value: totalPrice });
                     setStatus("交易發送成功！區塊確認中... 🧱");
                     await tx.wait(1);
@@ -606,9 +636,7 @@
                     await tx.wait();
                     setStatus(`✅ #${tokenId} 轉送成功`);
                     fetchContractData(account, targetContractAddress);
-                } catch (err) {
-                    alert("轉送失敗");
-                } finally { setTransferringId(null); }
+                } catch (err) { alert("轉送失敗"); } finally { setTransferringId(null); }
             };
 
             return (
@@ -619,12 +647,21 @@
                             <p className="subtitle">ERC721A Gas Optimized Collection</p>
                         </header>
 
-                        {/* --- Admin Panel --- */}
+                        <div className="api-key-section">
+                            <label className="api-key-label">🔑 Google Gemini API Key (Required for AI features)</label>
+                            <input 
+                                type="password" 
+                                className="api-key-input"
+                                placeholder="Paste your API Key here..." 
+                                value={apiKey} 
+                                onChange={(e) => setApiKey(e.target.value)}
+                            />
+                        </div>
+
                         {account && isOwner && (
                             <div className="admin-panel">
                                 <div className="admin-title">🔴 管理員控制台 (Admin Dashboard)</div>
                                 
-                                {/* Contract Address Config */}
                                 <div style={{marginBottom: "20px", paddingBottom: "15px", borderBottom: "1px solid rgba(255,255,255,0.1)"}}>
                                     <div className="admin-label" style={{marginBottom: "5px"}}>NFT 合約地址</div>
                                     <div style={{display: "flex", gap: "10px"}}>
@@ -649,74 +686,54 @@
                                 </button>
 
                                 <div className="admin-controls">
-                                    {/* 1. Mint Price */}
                                     <div className="admin-row">
                                         <div className="admin-label">鑄造價格 (ETH)</div>
-                                        <input 
-                                            className="admin-input" placeholder="0.001" 
-                                            value={newMintPrice} onChange={(e) => setNewMintPrice(e.target.value)}
-                                        />
+                                        <input className="admin-input" placeholder="0.001" value={newMintPrice} onChange={(e) => setNewMintPrice(e.target.value)}/>
                                         <button className="admin-btn" onClick={handleUpdatePrice} disabled={isAdminAction}>更新</button>
                                     </div>
-
-                                    {/* 2. Max Balance */}
                                     <div className="admin-row">
                                         <div className="admin-label">錢包限購 (Max Balance)</div>
-                                        <input 
-                                            className="admin-input" type="number" placeholder="5" 
-                                            value={newMaxBalance} onChange={(e) => setNewMaxBalance(e.target.value)}
-                                        />
+                                        <input className="admin-input" type="number" placeholder="5" value={newMaxBalance} onChange={(e) => setNewMaxBalance(e.target.value)}/>
                                         <button className="admin-btn" onClick={handleUpdateMaxBalance} disabled={isAdminAction}>更新</button>
                                     </div>
-
-                                    {/* 3. Max Mint */}
                                     <div className="admin-row">
                                         <div className="admin-label">單次限購 (Max Mint)</div>
-                                        <input 
-                                            className="admin-input" type="number" placeholder="3" 
-                                            value={newMaxMint} onChange={(e) => setNewMaxMint(e.target.value)}
-                                        />
+                                        <input className="admin-input" type="number" placeholder="3" value={newMaxMint} onChange={(e) => setNewMaxMint(e.target.value)}/>
                                         <button className="admin-btn" onClick={handleUpdateMaxMint} disabled={isAdminAction}>更新</button>
                                     </div>
-
-                                    {/* 4. Not Revealed URI */}
                                     <div className="admin-row">
                                         <div className="admin-label">盲盒封面圖片 (Not Revealed URI)</div>
-                                        <input 
-                                            className="admin-input admin-input-long" placeholder="ipfs://..." 
-                                            value={newNotRevealedURI} onChange={(e) => setNewNotRevealedURI(e.target.value)}
-                                        />
+                                        <input className="admin-input admin-input-long" placeholder="ipfs://..." value={newNotRevealedURI} onChange={(e) => setNewNotRevealedURI(e.target.value)}/>
                                         <button className="admin-btn" onClick={handleUpdateNotRevealedURI} disabled={isAdminAction}>更新</button>
                                     </div>
-
-                                    {/* 5. Base URI */}
                                     <div className="admin-row">
                                         <div className="admin-label">盲盒圖片路徑 (Base URI)</div>
-                                        <input 
-                                            className="admin-input admin-input-long" placeholder="ipfs://..." 
-                                            value={newBaseURI} onChange={(e) => setNewBaseURI(e.target.value)}
-                                        />
+                                        <input className="admin-input admin-input-long" placeholder="ipfs://..." value={newBaseURI} onChange={(e) => setNewBaseURI(e.target.value)}/>
                                         <button className="admin-btn" onClick={handleUpdateBaseURI} disabled={isAdminAction}>更新</button>
                                     </div>
+                                </div>
+
+                                {/* AI Image Generation Feature */}
+                                <div style={{marginTop: "20px", paddingTop: "15px", borderTop: "1px solid rgba(255,255,255,0.1)"}}>
+                                    <div className="admin-label" style={{marginBottom: "5px"}}>✨ AI 宣傳圖片生成</div>
+                                    <button className="ai-btn" onClick={handleGenerateAdminImage} disabled={isGeneratingAdminImage}>
+                                        {isGeneratingAdminImage ? "生成中..." : "✨ 生成圖片"}
+                                    </button>
+                                    {generatedAdminImage && (
+                                        <div className="ai-result-box">
+                                            <img src={generatedAdminImage} alt="Generated Admin Asset" />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
 
                         {account && (
                             <div className="wallet-info-container">
-                                <div className="wallet-badge badge-status">
-                                    <span className="connection-dot"></span>
-                                    已連接
-                                </div>
-                                <div className="wallet-badge badge-chain">
-                                    Ethereum
-                                </div>
-                                <div className="wallet-badge badge-address">
-                                    {account.slice(0, 6)}...{account.slice(-4)}
-                                </div>
-                                <div className="wallet-badge badge-disconnect" onClick={disconnectWallet} title="斷開連接">
-                                    🔌 斷開
-                                </div>
+                                <div className="wallet-badge badge-status"><span className="connection-dot"></span>已連接</div>
+                                <div className="wallet-badge badge-chain">Ethereum</div>
+                                <div className="wallet-badge badge-address">{account.slice(0, 6)}...{account.slice(-4)}</div>
+                                <div className="wallet-badge badge-disconnect" onClick={disconnectWallet} title="斷開連接">🔌 斷開</div>
                             </div>
                         )}
 
@@ -758,6 +775,7 @@
                                                     isTransferring={transferringId === id}
                                                     isRevealed={isRevealed}
                                                     contractAddress={targetContractAddress}
+                                                    apiKey={apiKey}
                                                 />
                                             ))}
                                         </div>
@@ -776,10 +794,14 @@
         }
 
         // --- 子元件：NFT 卡片 ---
-        function NFTCard({ tokenId, onTransfer, isTransferring, isRevealed, contractAddress }) {
+        function NFTCard({ tokenId, onTransfer, isTransferring, isRevealed, contractAddress, apiKey }) {
             const [toAddress, setToAddress] = useState("");
             const [metaImage, setMetaImage] = useState(null);
             const [loadingMeta, setLoadingMeta] = useState(false);
+            
+            // AI Backstory State
+            const [backstory, setBackstory] = useState("");
+            const [isGeneratingStory, setIsGeneratingStory] = useState(false);
 
             useEffect(() => {
                 fetchMetadata();
@@ -790,18 +812,14 @@
                 try {
                     const provider = new ethers.BrowserProvider(window.ethereum);
                     const contract = new ethers.Contract(contractAddress, CONTRACT_ABI, provider);
-                    
                     const uri = await contract.tokenURI(tokenId);
-                    
                     if (uri) {
                         let httpUri = uri;
                         if (uri.startsWith("ipfs://")) {
                             httpUri = uri.replace("ipfs://", "https://ipfs.io/ipfs/");
                         }
-
                         const response = await fetch(httpUri);
                         const metadata = await response.json();
-                        
                         if (metadata.image) {
                             let imgUrl = metadata.image;
                             if (imgUrl.startsWith("ipfs://")) {
@@ -810,12 +828,15 @@
                             setMetaImage(imgUrl);
                         }
                     }
-                } catch (err) {
-                    console.error("Metadata error:", err);
-                    setMetaImage(null);
-                } finally {
-                    setLoadingMeta(false);
-                }
+                } catch (err) { console.error("Metadata error:", err); setMetaImage(null); } finally { setLoadingMeta(false); }
+            };
+
+            const handleGenerateStory = async () => {
+                setIsGeneratingStory(true);
+                const prompt = `你是 NquMeta 元宇宙的說書人。請為 NquMeta NFT #${tokenId} 創作一個簡短（50字以內）、神秘且帶有 Cyberpunk 風格的角色背景故事。如果這張卡片尚未解盲，請描述它散發出的神秘能量。請用繁體中文回答。`;
+                const story = await callGeminiAPI(apiKey, prompt);
+                setBackstory(story);
+                setIsGeneratingStory(false);
             };
 
             return (
@@ -825,12 +846,7 @@
                             <span style={{fontSize: "0.8rem", color: "#64748b"}}>Loading...</span>
                         ) : (
                             metaImage ? (
-                                <img 
-                                    src={metaImage} 
-                                    className="nft-image" 
-                                    alt={`NFT #${tokenId}`}
-                                    onError={(e) => {e.target.style.display='none';}} 
-                                />
+                                <img src={metaImage} className="nft-image" alt={`NFT #${tokenId}`} onError={(e) => {e.target.style.display='none';}} />
                             ) : (
                                 <span className="nft-placeholder">{isRevealed ? "🖼️" : "🎁"}</span>
                             )
@@ -842,19 +858,18 @@
                         {isRevealed ? "已開啟" : "未開啟"}
                     </span>
                     
-                    <input 
-                        type="text" placeholder="接收地址 0x..." className="transfer-input"
-                        value={toAddress} onChange={(e) => setToAddress(e.target.value)}
-                        disabled={isTransferring}
-                        style={{marginTop: "5px"}}
-                    />
-                    <button 
-                        className="transfer-btn"
-                        disabled={isTransferring || !toAddress}
-                        onClick={() => onTransfer(tokenId, toAddress)}
-                    >
-                        {isTransferring ? "..." : "轉贈"}
+                    {/* AI Backstory Button */}
+                    <button className="ai-btn" onClick={handleGenerateStory} disabled={isGeneratingStory}>
+                        {isGeneratingStory ? "✨ 生成中..." : "✨ 生成故事"}
                     </button>
+                    {backstory && (
+                        <div className="ai-result-box" style={{marginTop: "5px", marginBottom: "10px"}}>
+                            <p>{backstory}</p>
+                        </div>
+                    )}
+
+                    <input type="text" placeholder="接收地址 0x..." className="transfer-input" value={toAddress} onChange={(e) => setToAddress(e.target.value)} disabled={isTransferring} style={{marginTop: "5px"}}/>
+                    <button className="transfer-btn" disabled={isTransferring || !toAddress} onClick={() => onTransfer(tokenId, toAddress)}>{isTransferring ? "..." : "轉贈"}</button>
                 </div>
             );
         }
