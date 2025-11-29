@@ -167,6 +167,7 @@
             background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444;
             color: #fca5a5; padding: 10px; border-radius: 8px; margin-top: 10px;
             font-size: 0.85rem; text-align: left;
+            word-break: break-word;
         }
 
         /* --- NFT Grid --- */
@@ -216,7 +217,7 @@
         const ethers = window.ethers;
 
         // Gemini API Key (Inject from environment)
-        const DEFAULT_API_KEY = "AIza********************************t5Vs"; 
+        const DEFAULT_API_KEY = "AIza********************************t5Vs";  
 
         // 預設合約地址
         const DEFAULT_ADDRESS = "0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF";
@@ -246,6 +247,31 @@
             "function setBaseURI(string memory _newBaseURI) public"
         ];
 
+        // --- Helper: Parse Google API Error JSON ---
+        async function parseGoogleError(response) {
+            try {
+                const errData = await response.json();
+                if (errData.error) {
+                    // 優先顯示 message
+                    let msg = errData.error.message || `Error ${errData.error.code}`;
+                    
+                    // 處理常見錯誤
+                    if (msg.includes("API key not valid")) {
+                        return "❌ API Key 無效，請檢查設定";
+                    }
+                    if (msg.includes("billed users")) {
+                        return "❌ 需要啟用計費功能的 API Key (Imagen 限制)";
+                    }
+                    
+                    return `❌ 請求失敗: ${msg}`;
+                }
+                return `❌ 未知錯誤: ${JSON.stringify(errData)}`;
+            } catch (e) {
+                // 如果回傳的不是 JSON，直接回傳文字
+                return `❌ 伺服器錯誤: ${await response.text()}`;
+            }
+        }
+
         // --- Gemini AI (Text) Helper Function ---
         async function callGeminiAPI(apiKey, prompt) {
             if (!apiKey) return "⚠️ 請先設定 API Key";
@@ -259,14 +285,14 @@
                 });
                 
                 if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`API Error: ${response.status} - ${errText}`);
+                    const errorMsg = await parseGoogleError(response);
+                    return errorMsg;
                 }
                 const data = await response.json();
                 return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
             } catch (error) {
                 console.error("Gemini AI Error:", error);
-                return `❌ 生成失敗: ${error.message}`;
+                return `❌ 連線失敗: ${error.message}`;
             }
         }
 
@@ -287,19 +313,8 @@
                 });
                 
                 if (!response.ok) {
-                    const errJson = await response.json();
-                    let errMsg = `API Error: ${response.status}`;
-                    
-                    // 嘗試解析 Google API 的錯誤訊息
-                    if (errJson.error && errJson.error.message) {
-                        errMsg = errJson.error.message;
-                        // 特別處理 Billing 錯誤
-                        if (errMsg.includes("billed users")) {
-                            errMsg = "⚠️ 此 API Key 的 Google Cloud 專案未啟用計費功能。Imagen 模型需要綁定付款方式才能使用。請升級您的 Google Cloud 帳戶。";
-                        }
-                    }
-                    
-                    return { success: false, error: errMsg };
+                    const errorMsg = await parseGoogleError(response);
+                    return { success: false, error: errorMsg };
                 }
                 
                 const data = await response.json();
@@ -517,7 +532,7 @@
                 if (!apiKey) return alert("請先設定 API Key");
                 setIsGeneratingAdminImage(true);
                 setGeneratedAdminImage(null);
-                setAdminImageError(""); // 清除舊錯誤
+                setAdminImageError(""); 
                 
                 const prompt = "A high quality, cyberpunk style promotional image for a NFT project named NquMeta. Featuring a glowing mysterious blind box, neon lights, futuristic city background, digital art, 4k resolution.";
                 
@@ -839,6 +854,7 @@
             // AI Backstory State
             const [backstory, setBackstory] = useState("");
             const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+            const [storyError, setStoryError] = useState(""); // 新增故事錯誤狀態
 
             useEffect(() => {
                 fetchMetadata();
@@ -870,9 +886,18 @@
 
             const handleGenerateStory = async () => {
                 setIsGeneratingStory(true);
+                setStoryError(""); // 清除舊錯誤
                 const prompt = `你是 NquMeta 元宇宙的說書人。請為 NquMeta NFT #${tokenId} 創作一個簡短（50字以內）、神秘且帶有 Cyberpunk 風格的角色背景故事。如果這張卡片尚未解盲，請描述它散發出的神秘能量。請用繁體中文回答。`;
-                const story = await callGeminiAPI(apiKey, prompt);
-                setBackstory(story);
+                
+                const result = await callGeminiAPI(apiKey, prompt);
+                
+                // 檢查是否為錯誤訊息
+                if (result.startsWith("❌") || result.startsWith("⚠️")) {
+                    setStoryError(result);
+                    setBackstory("");
+                } else {
+                    setBackstory(result);
+                }
                 setIsGeneratingStory(false);
             };
 
@@ -899,6 +924,11 @@
                     <button className="ai-btn" onClick={handleGenerateStory} disabled={isGeneratingStory}>
                         {isGeneratingStory ? "✨ 生成中..." : "✨ 生成故事"}
                     </button>
+                    {storyError && (
+                        <div className="ai-error-box">
+                            {storyError}
+                        </div>
+                    )}
                     {backstory && (
                         <div className="ai-result-box" style={{marginTop: "5px", marginBottom: "10px"}}>
                             <p>{backstory}</p>
