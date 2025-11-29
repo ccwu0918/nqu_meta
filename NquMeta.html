@@ -210,6 +210,9 @@
         const { useState, useEffect, useRef } = React;
         const ethers = window.ethers;
 
+        // Gemini API Key (Inject from environment)
+        const DEFAULT_API_KEY = "AIza**********************************t5Vs"; 
+
         // 預設合約地址
         const DEFAULT_ADDRESS = "0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF";
 
@@ -250,19 +253,23 @@
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                 });
                 
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errText}`);
+                }
                 const data = await response.json();
                 return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
             } catch (error) {
                 console.error("Gemini AI Error:", error);
-                return "❌ 生成失敗，請檢查 API Key 或網路連線。";
+                return `❌ 生成失敗: ${error.message}`;
             }
         }
 
         // --- Imagen AI (Image) Helper Function ---
         async function callImagenAPI(apiKey, prompt) {
-            if (!apiKey) return null;
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`;
+            if (!apiKey) return { success: false, error: "⚠️ 請先設定 API Key" };
+            // 更新為支援的 imagen-4.0 模型
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
             
             try {
                 const response = await fetch(url, {
@@ -274,15 +281,19 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`API Error: ${response.status} - ${errText}`);
+                }
+                
                 const data = await response.json();
                 if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
-                    return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
+                    return { success: true, imageUrl: `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}` };
                 }
-                return null;
+                return { success: false, error: "API 回傳格式不符" };
             } catch (error) {
                 console.error("Imagen AI Error:", error);
-                return null;
+                return { success: false, error: error.message };
             }
         }
 
@@ -292,7 +303,7 @@
             const [isOwner, setIsOwner] = useState(false);
             const [isConnecting, setIsConnecting] = useState(false);
             const [isMinting, setIsMinting] = useState(false);
-            const [apiKey, setApiKey] = useState("");
+            const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
             
             const [supply, setSupply] = useState(0);
             const [quantity, setQuantity] = useState(1);
@@ -487,14 +498,16 @@
             const handleGenerateAdminImage = async () => {
                 if (!apiKey) return alert("請先設定 API Key");
                 setIsGeneratingAdminImage(true);
+                setGeneratedAdminImage(null);
+                
                 const prompt = "A high quality, cyberpunk style promotional image for a NFT project named NquMeta. Featuring a glowing mysterious blind box, neon lights, futuristic city background, digital art, 4k resolution.";
                 
-                const imageUrl = await callImagenAPI(apiKey, prompt);
+                const result = await callImagenAPI(apiKey, prompt);
                 
-                if (imageUrl) {
-                    setGeneratedAdminImage(imageUrl);
+                if (result.success) {
+                    setGeneratedAdminImage(result.imageUrl);
                 } else {
-                    alert("圖片生成失敗，請檢查 API Key 或稍後再試。");
+                    alert(`圖片生成失敗: ${result.error}`);
                 }
                 setIsGeneratingAdminImage(false);
             };
