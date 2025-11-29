@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NQU Meta 盲盒 NFT 鑄造平台</title>
+    <!-- 引入 Ethers.js v5 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --color-primary: #2180AE;
+            --color-success: #22C55E;
+            --color-error: #EF4444;
+            --color-warning: #F59E0B;
+            --color-info: #3B82F6;
+            --color-bg-primary: #F8FAFC;
+            --color-bg-secondary: #E2E8F0;
+            --color-text-primary: #1E293B;
+            --color-text-secondary: #64748B;
+            --color-border: #CBD5E1;
+            --color-card-bg: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- Header Styles --- */
+        .header {
+            background: var(--color-card-bg);
+            border-bottom: 2px solid var(--color-border);
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: #D1FAE5;
+            color: var(--color-success);
+        }
+
+        .status-disconnected {
+            background: #FEE2E2;
+            color: var(--color-error);
+        }
+
+        .admin-badge {
+            display: none; /* Hidden by default */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* --- Button Styles --- */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary { background: var(--color-primary); color: white; }
+        .btn-success { background: var(--color-success); color: white; }
+        .btn-warning { background: var(--color-warning); color: white; }
+        .btn-error { background: var(--color-error); color: white; }
+
+        /* --- Connect Card --- */
+        .connect-card {
+            background: var(--color-card-bg);
+            border-radius: 12px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 500px;
+            margin: 80px auto;
+        }
+
+        .connect-card h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: var(--color-primary);
+        }
+
+        .connect-card p {
+            color: var(--color-text-secondary);
+            margin-bottom: 30px;
+        }
+
+        /* --- Admin Panel --- */
+        .admin-panel {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+            display: none; /* Hidden by default */
+        }
+
+        .admin-panel.show { display: block; }
+
+        .admin-title {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .admin-control {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            margin-bottom: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        .status-light {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .status-light.active { background: #22C55E; box-shadow: 0 0 8px #22C55E; }
+        .status-light.inactive { background: #EF4444; box-shadow: 0 0 8px #EF4444; }
+
+        /* --- Main Content Grid --- */
+        .main-content {
+            display: none; /* Hidden until connected */
+        }
+
+        .main-content.show {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .main-content.show { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--color-card-bg);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+
+        .card h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: var(--color-primary);
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-bg-secondary);
+        }
+
+        /* --- Minting Form --- */
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 15px;
+        }
+
+        .info-value { font-weight: bold; color: var(--color-text-primary); }
+
+        .form-group { margin-bottom: 20px; }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .input-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .input-control:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .total-cost {
+            background: var(--color-bg-primary);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .cost-label { font-size: 14px; color: var(--color-text-secondary); }
+        .cost-value { font-size: 24px; font-weight: bold; color: var(--color-primary); }
+
+        /* --- NFT Gallery --- */
+        .nft-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .nft-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--color-bg-secondary);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .nft-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .nft-image {
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--color-bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            overflow: hidden;
+        }
+
+        .nft-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .nft-info {
+            padding: 15px;
+            text-align: center;
+            border-top: 1px solid var(--color-bg-secondary);
+        }
+
+        .nft-id {
+            font-weight: bold;
+            color: var(--color-primary);
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px;
+            color: var(--color-text-secondary);
+            background: var(--color-bg-primary);
+            border-radius: 12px;
+        }
+        
+        .empty-state-icon { font-size: 48px; margin-bottom: 15px; }
+
+        /* --- Modal --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show { display: flex; }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 450px;
+            padding: 0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--color-bg-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-text-secondary); }
+
+        .modal-body { padding: 20px; }
+
+        .modal-image-container {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: var(--color-bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-image { width: 100%; height: 100%; object-fit: cover; }
+
+        .modal-actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        /* --- Toast Notification --- */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            transform: translateY(100px);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 2000;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 5px solid;
+        }
+
+        .toast.show { transform: translateY(0); }
+        .toast.success { border-color: var(--color-success); }
+        .toast.error { border-color: var(--color-error); }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo">
+                <span>🧊 NQU Meta</span>
+            </div>
+            <div class="wallet-info">
+                <div id="adminBadge" class="admin-badge">👑 管理員</div>
+                <div id="connectionStatus" class="status-badge status-disconnected">🔴 未連接</div>
+                <button id="connectBtn" class="btn btn-primary">連接錢包</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- Connect Wallet First View -->
+        <div id="connectCard" class="connect-card">
+            <h2>歡迎來到 NQU Meta</h2>
+            <p>請連接您的 MetaMask 錢包以開始鑄造或管理您的 NFT</p>
+            <div style="font-size: 40px; margin-bottom: 20px;">🦊</div>
+        </div>
+
+        <!-- Admin Panel (Only visible to owner) -->
+        <div id="adminPanel" class="admin-panel">
+            <div class="admin-title">🛠️ 管理員控制台</div>
+            <div class="admin-controls">
+                <!-- Toggle Sale -->
+                <div class="admin-control">
+                    <h3>販售狀態</h3>
+                    <div class="status-indicator">
+                        <div id="saleStatusLight" class="status-light inactive"></div>
+                        <span id="saleStatusText">🔴 暫停中</span>
+                    </div>
+                    <button id="toggleSaleBtn" class="btn btn-warning" style="width: 100%">開啟販售</button>
+                </div>
+
+                <!-- Toggle Reveal -->
+                <div class="admin-control">
+                    <h3>盲盒狀態</h3>
+                    <div class="status-indicator">
+                        <div id="revealStatusLight" class="status-light inactive"></div>
+                        <span id="revealStatusText">🙈 盲盒未開</span>
+                    </div>
+                    <button id="toggleRevealBtn" class="btn btn-warning" style="width: 100%">開啟盲盒</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application Content -->
+        <div id="mainContent" class="main-content">
+            
+            <!-- Left Column: Minting -->
+            <div class="card">
+                <h2>🎁 鑄造 NFT</h2>
+                
+                <div class="info-row">
+                    <span>總供應量:</span>
+                    <span class="info-value"><span id="totalSupply">0</span> / 1000</span>
+                </div>
+                <div class="info-row">
+                    <span>單價:</span>
+                    <span class="info-value"><span id="mintPriceDisplay">0</span> ETH</span>
+                </div>
+                <div class="info-row">
+                    <span>您的餘額:</span>
+                    <span class="info-value"><span id="userBalance">0</span> NFT</span>
+                </div>
+
+                <div class="form-group" style="margin-top: 25px;">
+                    <label>鑄造數量</label>
+                    <input type="number" id="mintQuantity" class="input-control" value="1" min="1" max="10" onchange="calculateCost()" onkeyup="calculateCost()">
+                </div>
+
+                <div class="total-cost">
+                    <div class="cost-label">預估費用</div>
+                    <div id="totalCost" class="cost-value">0.0000 ETH</div>
+                </div>
+
+                <button id="mintBtn" class="btn btn-primary" style="width: 100%; padding: 15px;" onclick="mintNFT()">
+                    🎁 開始鑄造
+                </button>
+            </div>
+
+            <!-- Right Column: Gallery -->
+            <div class="card">
+                <h2>🖼️ 我的收藏</h2>
+                <div id="nftGallery" class="nft-grid">
+                    <!-- NFTs will be injected here via JS -->
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <p>連接錢包後加載您的收藏</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- NFT Detail Modal -->
+    <div id="nftModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">NFT #0</div>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-image-container" id="modalImageContainer">
+                    <div id="modalImage"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>轉贈給 (地址):</label>
+                    <input type="text" id="transferAddress" class="input-control" placeholder="0x...">
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="transferNFT()">📤 轉贈 NFT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Contract Configuration
+        const CONTRACT_ADDRESS = '0xB2061d8eDc4D6792Be6aed586034CeAa54D9A3eF';
+        const CONTRACT_ABI = [
+            "function mintNquMeta(uint256 tokenQuantity) public payable",
+            "function totalSupply() view returns (uint256)",
+            "function MAX_SUPPLY() view returns (uint256)",
+            "function ownerOf(uint256 tokenId) view returns (address)",
+            "function balanceOf(address owner) view returns (uint256)",
+            "function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)",
+            "function transferFrom(address from, address to, uint256 tokenId)",
+            "function tokenURI(uint256 tokenId) view returns (string)",
+            "function _isSaleActive() view returns (bool)",
+            "function _revealed() view returns (bool)",
+            "function mintPrice() view returns (uint256)",
+            "function maxBalance() view returns (uint256)",
+            "function maxMint() view returns (uint256)",
+            "function notRevealedUri() view returns (string)", 
+            "function baseURI() view returns (string)",
+            "function owner() view returns (address)",
+            "function flipSaleActive() public",
+            "function flipReveal() public",
+            "function setMintPrice(uint256 _mintPrice) public",
+            "function setMaxBalance(uint256 _maxBalance) public",
+            "function setMaxMint(uint256 _maxMint) public",
+            "function setNotRevealedURI(string memory _notRevealedURI) public",
+            "function setBaseURI(string memory _newBaseURI) public"
+        ];
+
+        // Global Variables
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+        let isOwner = false;
+        let currentTokenId;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (typeof window.ethereum === 'undefined') {
+                showToast('❌ 請安裝 MetaMask 錢包', 'error');
+                document.getElementById('connectBtn').disabled = true;
+                return;
+            }
+            
+            // Setup listeners
+            window.ethereum.on('accountsChanged', function(accounts) {
+                if (accounts.length > 0) {
+                    userAddress = accounts[0];
+                    connectWallet(); // attempt to connect again
+                } else {
+                    disconnectWallet();
+                }
+            });
+            
+            window.ethereum.on('chainChanged', function(chainId) {
+                location.reload();
+            });
+
+            // Try to auto-connect if account already exists
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    // Initialize provider immediately if authorized
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                    userAddress = accounts[0];
+                    await connectWallet();
+                }
+            } catch (e) {
+                console.log("Auto-connect failed:", e);
+            }
+
+            document.getElementById('connectBtn').onclick = connectWallet;
+            document.getElementById('toggleSaleBtn').addEventListener('click', toggleSale);
+            document.getElementById('toggleRevealBtn').addEventListener('click', toggleReveal);
+        });
+
+        // Connect Wallet
+        async function connectWallet() {
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    showToast('請安裝 MetaMask', 'error');
+                    return;
+                }
+                
+                // Request account access only if not already connected
+                if (!userAddress) {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    userAddress = accounts[0];
+                }
+                
+                // Setup provider and signer if not already set
+                if (!provider) {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    signer = provider.getSigner();
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                }
+
+                // Update UI
+                document.getElementById('connectionStatus').textContent = '🟢 已連接';
+                document.getElementById('connectionStatus').className = 'status-badge status-connected';
+                document.getElementById('connectBtn').textContent = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('connectCard').style.display = 'none';
+                document.getElementById('mainContent').classList.add('show');
+                
+                showToast('✅ 成功連接錢包', 'success');
+                
+                // Check if user is owner
+                await checkOwnership();
+                // Load contract data
+                await loadContractData();
+                await loadUserNFTs();
+            } catch (error) {
+                console.error('Connection error:', error);
+                showToast('連接失敗：' + error.message, 'error');
+            }
+        }
+
+        // Check if connected user is contract owner
+        async function checkOwnership() {
+            try {
+                const ownerAddress = await contract.owner();
+                isOwner = ownerAddress.toLowerCase() === userAddress.toLowerCase();
+                
+                console.log('Contract owner:', ownerAddress);
+                console.log('Is owner:', isOwner);
+                
+                if (isOwner) {
+                    document.getElementById('adminBadge').style.display = 'block';
+                    document.getElementById('adminPanel').classList.add('show');
+                    await updateAdminStatus();
+                    showToast('👑 檢測到管理員權限', 'success');
+                }
+            } catch (error) {
+                console.error('Error checking ownership:', error);
+            }
+        }
+
+        // Update Admin Status
+        async function updateAdminStatus() {
+            try {
+                // Get sale status
+                const saleActive = await contract._isSaleActive();
+                const saleStatusLight = document.getElementById('saleStatusLight');
+                const saleStatusText = document.getElementById('saleStatusText');
+                const toggleSaleBtn = document.getElementById('toggleSaleBtn');
+                
+                if (saleActive) {
+                    saleStatusLight.className = 'status-light active';
+                    saleStatusText.textContent = '🟢 開賣中';
+                    toggleSaleBtn.textContent = '關閉販售';
+                    toggleSaleBtn.className = 'btn btn-error';
+                } else {
+                    saleStatusLight.className = 'status-light inactive';
+                    saleStatusText.textContent = '🔴 暫停中';
+                    toggleSaleBtn.textContent = '開啟販售';
+                    toggleSaleBtn.className = 'btn btn-warning';
+                }
+
+                // Get reveal status
+                const revealed = await contract._revealed();
+                const revealStatusLight = document.getElementById('revealStatusLight');
+                const revealStatusText = document.getElementById('revealStatusText');
+                const toggleRevealBtn = document.getElementById('toggleRevealBtn');
+                
+                if (revealed) {
+                    revealStatusLight.className = 'status-light active';
+                    revealStatusText.textContent = '👀 已開盲盒';
+                    toggleRevealBtn.textContent = '關閉盲盒';
+                    toggleRevealBtn.className = 'btn btn-error';
+                } else {
+                    revealStatusLight.className = 'status-light inactive';
+                    revealStatusText.textContent = '🙈 盲盒未開';
+                    toggleRevealBtn.textContent = '開啟盲盒';
+                    toggleRevealBtn.className = 'btn btn-warning';
+                }
+
+            } catch (error) {
+                console.error('Error updating admin status:', error);
+            }
+        }
+
+        // Toggle Sale Status
+        async function toggleSale() {
+            if (!isOwner) return;
+
+            try {
+                const toggleSaleBtn = document.getElementById('toggleSaleBtn');
+                const originalText = toggleSaleBtn.textContent;
+                toggleSaleBtn.disabled = true;
+                toggleSaleBtn.textContent = '處理中...';
+
+                const tx = await contract.flipSaleActive();
+                showToast('⏳ 交易已發送，等待確認...', 'success');
+                
+                await tx.wait();
+                showToast('✅ 販售狀態已更新', 'success');
+                
+                await updateAdminStatus();
+            } catch (error) {
+                console.error('Error toggling sale:', error);
+                showToast('❌ 操作失敗：' + (error.reason || error.message), 'error');
+            } finally {
+                document.getElementById('toggleSaleBtn').disabled = false;
+            }
+        }
+
+        // Toggle Reveal Status
+        async function toggleReveal() {
+            if (!isOwner) return;
+
+            try {
+                const toggleRevealBtn = document.getElementById('toggleRevealBtn');
+                const originalText = toggleRevealBtn.textContent;
+                toggleRevealBtn.disabled = true;
+                toggleRevealBtn.textContent = '處理中...';
+
+                const tx = await contract.flipReveal();
+                showToast('⏳ 交易已發送，等待確認...', 'success');
+                
+                await tx.wait();
+                showToast('✅ 盲盒狀態已更新', 'success');
+                
+                await updateAdminStatus();
+                await loadUserNFTs();
+            } catch (error) {
+                console.error('Error toggling reveal:', error);
+                showToast('❌ 操作失敗：' + (error.reason || error.message), 'error');
+            } finally {
+                document.getElementById('toggleRevealBtn').disabled = false;
+            }
+        }
+
+        // Disconnect Wallet
+        function disconnectWallet() {
+            provider = null;
+            signer = null;
+            contract = null;
+            userAddress = null;
+            isOwner = false;
+            document.getElementById('connectionStatus').textContent = '🔴 未連接';
+            document.getElementById('connectionStatus').className = 'status-badge status-disconnected';
+            document.getElementById('connectBtn').textContent = '連接錢包';
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('connectCard').style.display = 'block';
+            document.getElementById('mainContent').classList.remove('show');
+            document.getElementById('adminPanel').classList.remove('show');
+            document.getElementById('adminBadge').style.display = 'none';
+            showToast('❌ 已斷開錢包', 'error');
+        }
+
+        // Load Contract Data
+        async function loadContractData() {
+            try {
+                const totalSupply = await contract.totalSupply();
+                document.getElementById('totalSupply').textContent = totalSupply.toString();
+                
+                const balance = await contract.balanceOf(userAddress);
+                document.getElementById('userBalance').textContent = balance.toString();
+                
+                const mintPrice = await contract.mintPrice();
+                const priceInEth = ethers.utils.formatEther(mintPrice);
+                document.getElementById('mintPriceDisplay').textContent = priceInEth;
+                
+                calculateCost();
+            } catch (error) {
+                console.error('Error loading contract data:', error);
+            }
+        }
+
+        // Calculate Total Cost
+        function calculateCost() {
+            const quantity = document.getElementById('mintQuantity').value;
+            const priceText = document.getElementById('mintPriceDisplay').textContent;
+            const price = parseFloat(priceText);
+            
+            if (isNaN(price)) return;
+            
+            const total = (price * quantity).toFixed(4);
+            document.getElementById('totalCost').textContent = `${total} ETH`;
+        }
+
+        // Mint NFT
+        async function mintNFT() {
+            if (!contract) {
+                showToast('❌ 請先連接錢包', 'error');
+                return;
+            }
+
+            try {
+                const quantity = document.getElementById('mintQuantity').value;
+                const mintBtn = document.getElementById('mintBtn');
+                const originalText = mintBtn.textContent;
+                
+                mintBtn.disabled = true;
+                mintBtn.textContent = '鑄造中...';
+
+                const mintPrice = await contract.mintPrice();
+                const totalCost = mintPrice.mul(quantity);
+
+                const tx = await contract.mintNquMeta(quantity, {
+                    value: totalCost
+                });
+
+                showToast('⏳ 交易已發送，等待確認...', 'success');
+                
+                await tx.wait();
+                
+                showToast('✅ 成功鑄造 NFT！', 'success');
+                
+                await loadContractData();
+                await loadUserNFTs();
+            } catch (error) {
+                console.error('Mint error:', error);
+                // Check specifically for insufficient funds or user rejection
+                if (error.code === 'INSUFFICIENT_FUNDS') {
+                    showToast('❌ 餘額不足', 'error');
+                } else if (error.code === 4001) {
+                    showToast('❌ 用戶取消交易', 'error');
+                } else {
+                    showToast('❌ 鑄造失敗：' + (error.reason || error.message), 'error');
+                }
+            } finally {
+                const mintBtn = document.getElementById('mintBtn');
+                mintBtn.disabled = false;
+                mintBtn.textContent = '🎁 開始鑄造';
+            }
+        }
+
+        // Load User NFTs
+        async function loadUserNFTs() {
+            const gallery = document.getElementById('nftGallery');
+            try {
+                console.log('[loadUserNFTs] ===== 開始加載 NFT =====');
+                const balance = await contract.balanceOf(userAddress);
+                const balanceNum = balance.toNumber ? balance.toNumber() : parseInt(balance.toString());
+                
+                gallery.innerHTML = '';
+
+                if (balanceNum === 0) {
+                    gallery.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p>您還沒有任何 NFT<br>快去鑄造一個吧！</p></div>';
+                    return;
+                }
+
+                let ownedIds = [];
+                let useEnumerableMethod = true;
+                
+                // Method 1: Try tokenOfOwnerByIndex
+                try {
+                    for (let i = 0; i < balanceNum; i++) {
+                        const tokenId = await contract.tokenOfOwnerByIndex(userAddress, i);
+                        ownedIds.push(tokenId.toNumber());
+                    }
+                } catch (e) {
+                    console.warn('[loadUserNFTs] Enum method failed, switching to scan:', e.message);
+                    useEnumerableMethod = false;
+                }
+                
+                // Method 2: Fallback scan
+                if (!useEnumerableMethod || ownedIds.length === 0) {
+                    const totalSupply = await contract.totalSupply();
+                    const totalNum = totalSupply.toNumber();
+                    // Safety cap to prevent browser hanging on huge collections
+                    const maxScan = Math.min(totalNum + 50, 2000); 
+                    
+                    for (let tokenId = 0; tokenId < maxScan; tokenId++) {
+                        try {
+                            const owner = await contract.ownerOf(tokenId);
+                            if (owner.toLowerCase() === userAddress.toLowerCase()) {
+                                ownedIds.push(tokenId);
+                            }
+                        } catch (e) { continue; }
+                    }
+                }
+
+                // Render
+                const isRevealed = await contract._revealed();
+                
+                for (const tokenId of ownedIds) {
+                    try {
+                        const imageUrl = await fetchMetadata(tokenId);
+                        const card = await createNFTCard(tokenId, isRevealed, imageUrl);
+                        gallery.appendChild(card);
+                    } catch (error) {
+                        const card = await createNFTCard(tokenId, isRevealed, null);
+                        gallery.appendChild(card);
+                    }
+                }
+            } catch (error) {
+                console.error('[loadUserNFTs] Error:', error);
+                gallery.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>加載失敗，請檢查網絡</p></div>';
+            }
+        }
+
+        // Helpers
+        function convertIpfsToHttp(uri) {
+            if (!uri) return null;
+            if (uri.startsWith('http')) return uri;
+            if (uri.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${uri.replace('ipfs://', '')}`;
+            if (uri.startsWith('/ipfs/')) return `https://ipfs.io${uri}`;
+            return uri;
+        }
+
+        async function fetchMetadata(tokenId) {
+            try {
+                const tokenURI = await contract.tokenURI(tokenId);
+                if (!tokenURI) return null;
+                
+                const url = convertIpfsToHttp(tokenURI);
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Fetch failed');
+                
+                const metadata = await response.json();
+                
+                // Handle various image keys
+                const imgRaw = metadata.image || metadata.image_url || metadata.imageUrl || metadata.imageUri;
+                return convertIpfsToHttp(imgRaw);
+            } catch (e) {
+                console.warn(`Metadata fetch failed for #${tokenId}`, e);
+                return null;
+            }
+        }
+
+        async function createNFTCard(tokenId, revealed, imageUrl) {
+            const card = document.createElement('div');
+            card.className = 'nft-card';
+            card.onclick = () => openNFTModal(tokenId, revealed, imageUrl);
+            
+            const imageDiv = document.createElement('div');
+            imageDiv.className = 'nft-image';
+            const fallbackEmoji = revealed ? '✨' : '🎁';
+
+            if (imageUrl) {
+                imageDiv.innerHTML = `<img src="${imageUrl}" alt="NFT #${tokenId}" onerror="this.parentElement.innerHTML='${fallbackEmoji}'">`;
+            } else {
+                imageDiv.innerHTML = fallbackEmoji;
+            }
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'nft-info';
+            infoDiv.innerHTML = `<div class="nft-id">NFT #${tokenId}</div>`;
+
+            card.appendChild(imageDiv);
+            card.appendChild(infoDiv);
+            return card;
+        }
+
+        // Modal Logic
+        function openNFTModal(tokenId, revealed, imageUrl) {
+            currentTokenId = tokenId;
+            document.getElementById('modalTitle').textContent = `NFT #${tokenId}`;
+            const container = document.getElementById('modalImage');
+            const fallbackEmoji = revealed ? '✨' : '🎁';
+            
+            if (imageUrl) {
+                container.innerHTML = `<img src="${imageUrl}" class="modal-image" onerror="this.parentElement.innerHTML='<div style=\'font-size:80px; text-align:center\'>${fallbackEmoji}</div>'">`;
+            } else {
+                container.innerHTML = `<div style="font-size: 80px; text-align: center; color: white;">${fallbackEmoji}</div>`;
+            }
+            
+            document.getElementById('transferAddress').value = '';
+            document.getElementById('nftModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('nftModal').classList.remove('show');
+        }
+
+        async function transferNFT() {
+            const toAddress = document.getElementById('transferAddress').value;
+            if (!ethers.utils.isAddress(toAddress)) {
+                showToast('❌ 無效的地址', 'error');
+                return;
+            }
+
+            try {
+                const tx = await contract.transferFrom(userAddress, toAddress, currentTokenId);
+                showToast('⏳ 轉贈中...', 'success');
+                await tx.wait();
+                showToast('✅ 轉贈成功', 'success');
+                closeModal();
+                loadUserNFTs();
+                loadContractData();
+            } catch (e) {
+                console.error(e);
+                showToast('❌ 轉贈失敗', 'error');
+            }
+        }
+
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        window.onclick = function(e) {
+            const modal = document.getElementById('nftModal');
+            if (e.target === modal) closeModal();
+        }
+    </script>
+</body>
+</html>
