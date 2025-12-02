@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>區塊鏈紅包 DApp</title>
+    <!-- 引入 Tailwind CSS 進行快速樣式設計與 RWD -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Ethers.js V6 用於區塊鏈互動 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"></script>
+    <style>
+        /* 自定義一些紅包風格的動畫 */
+        @keyframes pulse-gold {
+            0%, 100% { box-shadow: 0 0 0 0px rgba(234, 179, 8, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+        }
+        .btn-gold {
+            animation: pulse-gold 2s infinite;
+        }
+        /* 隱藏未加載時的元素 */
+        .hidden-init { display: none; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-red-700 to-red-900 min-h-screen text-slate-800 font-sans flex items-center justify-center p-4">
+
+    <!-- 主容器 -->
+    <div class="bg-white/95 backdrop-blur rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border-4 border-yellow-500/50">
+        
+        <!-- 標題區 -->
+        <div class="bg-red-600 p-6 text-center border-b-4 border-red-500 relative">
+            <div class="absolute top-4 right-4 text-red-300 opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-bold text-yellow-100 tracking-wider">🧧 區塊鏈搶紅包</h1>
+            <p class="text-red-200 text-sm mt-2">公平、透明、拚手氣</p>
+        </div>
+
+        <div class="p-6 space-y-6">
+            
+            <!-- 1. 錢包連接區 -->
+            <div id="walletSection" class="text-center">
+                <button onclick="connectWallet()" id="btnConnect" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-6 rounded-xl transition duration-300 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    連接 MetaMask 錢包
+                </button>
+                <div id="walletInfo" class="hidden-init bg-green-100 text-green-800 px-4 py-2 rounded-lg border border-green-200 flex justify-between items-center">
+                    <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>已連接</span>
+                    <span id="userAddress" class="font-mono text-xs font-bold"></span>
+                </div>
+            </div>
+
+            <!-- 2. 合約載入區 -->
+            <div id="contractSection" class="opacity-50 pointer-events-none transition-opacity duration-300">
+                <label class="block text-sm font-semibold text-slate-600 mb-1 ml-1">紅包合約地址</label>
+                <div class="flex gap-2 flex-col sm:flex-row">
+                    <!-- 這裡設定了預設值 -->
+                    <input type="text" id="contractAddress" value="0x3F69Ef1F933981B6A10033ee518e055383403515" placeholder="例如: 0x123..." class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-mono text-slate-600">
+                    <button onclick="loadContractData()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition sm:w-auto w-full">
+                        讀取
+                    </button>
+                </div>
+            </div>
+
+            <!-- 訊息提示框 -->
+            <div id="statusMsg" class="hidden-init p-3 rounded-lg text-sm text-center font-medium animate-bounce"></div>
+
+            <!-- 3. 紅包儀表板 (初始隱藏) -->
+            <div id="dashboard" class="hidden-init space-y-4">
+                <div class="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-5 relative overflow-hidden">
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <p class="text-xs text-slate-500 mb-1">紅包類型</p>
+                            <p id="dispType" class="text-lg font-bold text-slate-800">-</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-500 mb-1">剩餘數量</p>
+                            <p id="dispCount" class="text-2xl font-bold text-red-600">-</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-center border-t border-yellow-200 pt-4">
+                        <p class="text-xs text-slate-500 mb-1">合約總餘額</p>
+                        <p id="dispBalance" class="text-3xl font-bold text-slate-900 tracking-tighter">- ETH</p>
+                    </div>
+                </div>
+
+                <!-- 搶紅包按鈕 -->
+                <button id="btnStake" onclick="stakePacket()" class="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold py-4 rounded-xl text-xl shadow-lg transform transition active:scale-95 btn-gold disabled:opacity-50 disabled:cursor-not-allowed disabled:animation-none">
+                    立即搶紅包！
+                </button>
+
+                <!-- 土豪功能 (僅限發紅包者可見) -->
+                <div id="adminSection" class="hidden-init pt-4 border-t border-slate-200 mt-4">
+                    <p class="text-xs text-center text-slate-400 mb-2">管理員 (土豪) 專區</p>
+                    <button onclick="killContract()" class="w-full border border-slate-300 text-slate-500 hover:text-red-600 hover:border-red-400 hover:bg-red-50 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        銷毀合約並退款
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="bg-slate-50 p-3 text-center text-xs text-slate-400 border-t border-slate-100">
+            請確保您的錢包位於正確的網路上 (如 Sepolia)
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // -----------------------------------------------------
+        // 全域變數
+        // -----------------------------------------------------
+        let provider, signer, contract;
+        let userAddress = null;
+        let tuhaoAddress = null;
+
+        // 合約 ABI (定義我們需要互動的函式)
+        const ABI = [
+            "function rType() view returns (bool)",
+            "function rCount() view returns (uint8)",
+            "function tuhao() view returns (address)",
+            "function getBalance() view returns (uint256)",
+            "function stakePacket() payable",
+            "function kill() payable"
+        ];
+
+        // -----------------------------------------------------
+        // 1. 連接錢包
+        // -----------------------------------------------------
+        async function connectWallet() {
+            if (!window.ethereum) {
+                showStatus("請安裝 MetaMask 錢包！", "error");
+                return;
+            }
+
+            try {
+                // 建立 Provider
+                provider = new ethers.BrowserProvider(window.ethereum);
+                
+                // 請求用戶授權
+                const accounts = await provider.send("eth_requestAccounts", []);
+                userAddress = accounts[0];
+                
+                // 建立 Signer (用於發送交易)
+                signer = await provider.getSigner();
+
+                // 更新 UI
+                document.getElementById('btnConnect').classList.add('hidden-init');
+                document.getElementById('walletInfo').classList.remove('hidden-init');
+                document.getElementById('userAddress').innerText = userAddress.substring(0,6) + "..." + userAddress.substring(userAddress.length-4);
+                
+                // 啟用合約輸入區
+                const contractSec = document.getElementById('contractSection');
+                contractSec.classList.remove('opacity-50', 'pointer-events-none');
+                
+                showStatus("錢包連接成功！請輸入合約地址。", "success");
+
+            } catch (err) {
+                console.error(err);
+                showStatus("連接失敗: " + err.message, "error");
+            }
+        }
+
+        // -----------------------------------------------------
+        // 2. 讀取合約資料
+        // -----------------------------------------------------
+        async function loadContractData() {
+            const addressInput = document.getElementById('contractAddress').value;
+            
+            if (!ethers.isAddress(addressInput)) {
+                showStatus("無效的合約地址！", "error");
+                return;
+            }
+
+            try {
+                showStatus("讀取合約數據中...", "normal");
+                
+                // 實例化合約
+                contract = new ethers.Contract(addressInput, ABI, signer);
+
+                // 批次讀取資料
+                const rType = await contract.rType();
+                const rCount = await contract.rCount();
+                const balance = await contract.getBalance();
+                const tuhao = await contract.tuhao();
+                tuhaoAddress = tuhao; // 存起來做權限判斷
+
+                // 更新儀表板 UI
+                document.getElementById('dispType').innerText = rType ? "⚖️ 平均分配" : "🎲 隨機拚手氣";
+                document.getElementById('dispCount').innerText = rCount.toString() + " 份";
+                document.getElementById('dispBalance').innerText = ethers.formatEther(balance) + " ETH";
+                
+                // 顯示儀表板
+                document.getElementById('dashboard').classList.remove('hidden-init');
+
+                // 處理按鈕狀態
+                const btnStake = document.getElementById('btnStake');
+                if (Number(rCount) === 0) {
+                    btnStake.disabled = true;
+                    btnStake.innerText = "紅包已搶完 😭";
+                    btnStake.classList.remove('btn-gold');
+                    btnStake.classList.add('bg-slate-400');
+                } else {
+                    btnStake.disabled = false;
+                    btnStake.innerText = "立即搶紅包！";
+                }
+
+                // 判斷是否為土豪本人
+                const adminSec = document.getElementById('adminSection');
+                if (userAddress.toLowerCase() === tuhao.toLowerCase()) {
+                    adminSec.classList.remove('hidden-init');
+                } else {
+                    adminSec.classList.add('hidden-init');
+                }
+
+                showStatus("合約資料已更新", "success");
+
+            } catch (err) {
+                console.error(err);
+                showStatus("讀取失敗，請確認地址與網路。", "error");
+            }
+        }
+
+        // -----------------------------------------------------
+        // 3. 搶紅包功能
+        // -----------------------------------------------------
+        async function stakePacket() {
+            if (!contract) return;
+
+            try {
+                showStatus("正在發送交易...請在 MetaMask 確認", "normal");
+                
+                // 呼叫合約
+                const tx = await contract.stakePacket();
+                
+                showStatus("交易處理中...請稍候", "normal");
+                
+                // 等待交易確認
+                await tx.wait();
+
+                showStatus("🎉 恭喜！紅包領取成功！", "success");
+                
+                // 重新讀取數據以更新餘額
+                loadContractData();
+
+            } catch (err) {
+                console.error(err);
+                // 錯誤訊息判斷 (從 Solidity require 來的錯誤)
+                let msg = err.message;
+                if (msg.includes("user already stake")) msg = "你已經領過這個紅包囉！";
+                else if (msg.includes("red packet must left")) msg = "來晚了，紅包被搶光了！";
+                else msg = "交易失敗 (可能餘額不足或已領過)";
+                
+                showStatus(msg, "error");
+            }
+        }
+
+        // -----------------------------------------------------
+        // 4. 銷毀合約 (土豪專用)
+        // -----------------------------------------------------
+        async function killContract() {
+            if (!confirm("⚠️ 警告：這將銷毀合約並將剩餘款項退回您的錢包，確定執行？")) return;
+
+            try {
+                showStatus("正在銷毀合約...", "normal");
+                const tx = await contract.kill();
+                await tx.wait();
+                
+                showStatus("🗑️ 合約已銷毀，餘額已退回。", "success");
+                
+                // 清空 UI
+                document.getElementById('dashboard').classList.add('hidden-init');
+            } catch (err) {
+                console.error(err);
+                showStatus("銷毀失敗: " + err.message, "error");
+            }
+        }
+
+        // -----------------------------------------------------
+        // UI 工具：顯示狀態訊息
+        // -----------------------------------------------------
+        function showStatus(text, type) {
+            const el = document.getElementById('statusMsg');
+            el.classList.remove('hidden-init');
+            el.innerText = text;
+            
+            // 重置樣式
+            el.className = "p-3 rounded-lg text-sm text-center font-medium mb-4 transition-all ";
+            
+            if (type === 'error') {
+                el.classList.add('bg-red-100', 'text-red-700');
+            } else if (type === 'success') {
+                el.classList.add('bg-green-100', 'text-green-700');
+            } else {
+                el.classList.add('bg-blue-100', 'text-blue-700', 'animate-pulse');
+            }
+        }
+
+        // 監聽 MetaMask 帳戶切換
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                window.location.reload(); // 簡單處理：切換帳戶就重整頁面
+            });
+        }
+    </script>
+</body>
+</html>
