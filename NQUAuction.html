@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 標題 -->
+    <title>NQU Web3 去中心化競標拍賣</title>
+    <!-- 引入 Tailwind CSS 進行 RWD 排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Ethers.js v6 (用於與區塊鏈互動) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <!-- 引入 Markdown 解析器 (用於美化顯示 AI 回應) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* 自定義漸層背景 */
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        /* 玻璃擬態面板樣式 */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* AI 回應區塊的 Markdown 文字樣式調整 */
+        .prose p {
+            margin-bottom: 0.5em;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div class="glass-panel w-full max-w-2xl rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
+        <!-- 標頭區 -->
+        <div class="flex justify-between items-center border-b pb-4">
+            <!-- 顯示標題 -->
+            <h1 class="text-2xl font-bold text-gray-800">🔨 NQU Web3 去中心化競標拍賣</h1>
+            <!-- 網路狀態顯示 -->
+            <span id="networkStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-500">未連線</span>
+        </div>
+
+        <!-- 錢包連接區 -->
+        <div class="text-center">
+            <button id="connectBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg flex justify-center items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span id="connectBtnText">連接錢包</span>
+            </button>
+            <!-- 顯示使用者地址 -->
+            <p id="userAddress" class="mt-2 text-sm text-gray-600 break-all hidden"></p>
+        </div>
+
+        <!-- 拍賣資訊儀表板 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 顯示目前最高出價 -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <p class="text-sm text-gray-500 uppercase">目前最高出價 (highestBid)</p>
+                <p class="text-2xl font-bold text-blue-600 truncate" id="highestBidDisplay">0.0 ETH</p>
+            </div>
+            
+            <!-- 顯示剩餘時間 -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <p class="text-sm text-gray-500 uppercase">剩餘時間 (endTime)</p>
+                <p class="text-2xl font-bold text-red-500" id="timerDisplay">--:--:--</p>
+            </div>
+
+            <!-- 顯示最高出價者 -->
+            <div class="col-span-1 md:col-span-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <p class="text-xs text-gray-500">最高出價者地址 (highestBider)：</p>
+                <p class="font-mono text-sm text-gray-800 break-all" id="highestBidderDisplay">尚無出價</p>
+            </div>
+        </div>
+
+        <!-- ✨ AI 智能助手區塊 (整合 Gemini API) -->
+        <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-xl">✨</span>
+                <h3 class="font-bold text-purple-800">AI 智能拍賣助手</h3>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <button id="aiCommentaryBtn" class="bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 font-semibold py-2 px-3 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                    <span>🎤</span> 聽聽 AI 拍賣官評論
+                </button>
+                <button id="aiShareBtn" class="bg-white hover:bg-purple-50 text-purple-700 border border-purple-200 font-semibold py-2 px-3 rounded-lg transition text-sm flex items-center justify-center gap-2">
+                    <span>📱</span> 生成競標宣傳文
+                </button>
+            </div>
+
+            <!-- AI 回應顯示區 -->
+            <div id="aiResponseArea" class="hidden bg-white/80 p-3 rounded-lg text-sm text-gray-700 border border-purple-100 prose max-w-none">
+                <div class="flex items-center gap-2 text-gray-500">
+                    <div class="animate-spin h-4 w-4 border-2 border-purple-500 rounded-full border-t-transparent"></div>
+                    正在思考中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作區 (出價與結標) -->
+        <div id="actionArea" class="space-y-4 opacity-50 pointer-events-none transition-opacity duration-300">
+            <!-- 出價輸入 -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">您的出價 (ETH)</label>
+                <div class="flex gap-2">
+                    <input type="number" step="0.0001" id="bidAmount" placeholder="例如: 0.1" 
+                           class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                    <button id="bidBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow transition duration-200">
+                        出價
+                    </button>
+                </div>
+            </div>
+
+            <!-- 管理員操作 (結標) -->
+            <div class="pt-4 border-t border-gray-200">
+                <button id="endAuctionBtn" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 rounded-lg transition duration-200 hidden">
+                    結束拍賣 (僅管理員可用)
+                </button>
+            </div>
+        </div>
+
+        <!-- 狀態與錯誤訊息提示區 -->
+        <div id="statusMessage" class="hidden p-4 rounded-lg text-sm text-center"></div>
+
+    </div>
+
+    <script>
+        // ---------------------------------------------------------
+        // 1. 設定合約地址與環境
+        // ---------------------------------------------------------
+        
+        // 已更新為指定之合約位址
+        const contractAddress = "0x76e4203a0b866F7e5f37d4fD84Be3ABe69CAebb5"; 
+        
+        // Gemini API Key (系統將自動填入，請勿修改)
+        const apiKey = ""; 
+
+        // ---------------------------------------------------------
+        // 2. 智能合約 ABI 定義 (對應 Solidity 介面)
+        // ---------------------------------------------------------
+        const contractABI = [
+            // 對應 function bid(uint256 _amount) public payable
+            "function bid(uint256 _amount) public payable",
+            
+            // 對應 function endAuction() public payable
+            "function endAuction() public payable",
+            
+            // 對應 uint256 public highestBid; // 最高出價金額
+            "function highestBid() public view returns (uint256)",
+            
+            // 對應 address payable highestBider; // 最高出價者
+            "function highestBider() public view returns (address)",
+            
+            // 對應 uint256 public endTime; // 結束時間
+            "function endTime() public view returns (uint256)",
+            
+            // 對應 bool isFinshed; // 是否已經結束
+            "function isFinshed() public view returns (bool)",
+            
+            // 嘗試讀取 owner 函數 (若合約未公開此函數，可能呼叫失敗但不影響主要功能)
+            "function owner() public view returns (address)",
+            "function getOwner() public view returns (address)",
+
+            // 對應 event BidEvent(address _higher, uint256 highAmount);
+            "event BidEvent(address _higher, uint256 highAmount)",
+            
+            // 對應 event EndBidEvent(address _winner, uint256 _amount);
+            "event EndBidEvent(address _winner, uint256 _amount)"
+        ];
+
+        // ---------------------------------------------------------
+        // 3. 全域變數宣告
+        // ---------------------------------------------------------
+        let provider;       // Web3 提供者
+        let signer;         // 簽署者 (當前連接的錢包)
+        let contract;       // 合約實例
+        let userAccount;    // 使用者錢包地址
+        let auctionEndTime; // 拍賣結束時間戳記
+        let timerInterval;  // 倒數計時器 ID
+        let currentHighestBid = "0.0"; // 儲存目前最高價供 AI 使用
+
+        // 取得 DOM 元素
+        const connectBtn = document.getElementById('connectBtn');
+        const connectBtnText = document.getElementById('connectBtnText');
+        const userAddressDisplay = document.getElementById('userAddress');
+        const actionArea = document.getElementById('actionArea');
+        const bidBtn = document.getElementById('bidBtn');
+        const endAuctionBtn = document.getElementById('endAuctionBtn');
+        const statusMsg = document.getElementById('statusMessage');
+        const aiResponseArea = document.getElementById('aiResponseArea');
+
+        // ---------------------------------------------------------
+        // 4. 連接錢包功能
+        // ---------------------------------------------------------
+        connectBtn.addEventListener('click', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // 初始化 Ethers 提供者
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    
+                    // 請求用戶授權連接錢包
+                    const accounts = await provider.send("eth_requestAccounts", []);
+                    userAccount = accounts[0];
+                    signer = await provider.getSigner();
+                    
+                    // 更新 UI 狀態
+                    updateUIConnected();
+                    
+                    // 初始化合約
+                    await initContract();
+                } catch (error) {
+                    showStatus("連接失敗: " + error.message, "error");
+                }
+            } else {
+                alert("請安裝 MetaMask 錢包！");
+            }
+        });
+
+        function updateUIConnected() {
+            connectBtn.classList.add('hidden');
+            userAddressDisplay.innerText = `已連接: ${userAccount}`;
+            userAddressDisplay.classList.remove('hidden');
+            document.getElementById('networkStatus').innerText = "已連線";
+            document.getElementById('networkStatus').classList.replace('bg-gray-200', 'bg-green-100');
+            document.getElementById('networkStatus').classList.replace('text-gray-500', 'text-green-700');
+            actionArea.classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        // ---------------------------------------------------------
+        // 5. 初始化合約與讀取資料
+        // ---------------------------------------------------------
+        async function initContract() {
+            if(!contractAddress || contractAddress.length < 42) {
+                showStatus("錯誤：請檢查合約地址設定", "error");
+                return;
+            }
+
+            // 建立合約實例
+            contract = new ethers.Contract(contractAddress, contractABI, signer);
+            
+            // 初次讀取區塊鏈資料
+            await refreshData();
+
+            // 嘗試顯示管理員按鈕
+            endAuctionBtn.classList.remove('hidden');
+
+            // 監聽鏈上事件 (即時更新前端)
+            
+            // 出價事件: event BidEvent(address _higher, uint256 highAmount)
+            contract.on("BidEvent", (_higher, highAmount) => {
+                showStatus(`新出價！ ${ethers.formatEther(highAmount)} ETH`, "success");
+                refreshData();
+            });
+
+            // 結標事件: event EndBidEvent(address _winner, uint256 _amount)
+            contract.on("EndBidEvent", (_winner, _amount) => {
+                showStatus(`拍賣結束！得標者: ${_winner}`, "success");
+                refreshData();
+                stopTimer();
+            });
+        }
+
+        async function refreshData() {
+            try {
+                // 讀取合約狀態變數
+                const highestBid = await contract.highestBid();
+                const highestBidder = await contract.highestBider();
+                const endTimeBN = await contract.endTime();
+                const isFinished = await contract.isFinshed();
+
+                currentHighestBid = ethers.formatEther(highestBid);
+
+                // 更新畫面數值
+                document.getElementById('highestBidDisplay').innerText = `${currentHighestBid} ETH`;
+                document.getElementById('highestBidderDisplay').innerText = highestBidder === ethers.ZeroAddress ? "暫無出價" : highestBidder;
+
+                // 處理結束時間
+                auctionEndTime = Number(endTimeBN);
+                
+                if (isFinished) {
+                    document.getElementById('timerDisplay').innerText = "已結標";
+                    // 結標後鎖定操作區
+                    actionArea.classList.add('opacity-50', 'pointer-events-none');
+                    stopTimer();
+                } else {
+                    startTimer();
+                }
+
+            } catch (error) {
+                console.error("讀取資料錯誤:", error);
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 6. 出價功能 (function bid)
+        // ---------------------------------------------------------
+        bidBtn.addEventListener('click', async () => {
+            const amountVal = document.getElementById('bidAmount').value;
+            if (!amountVal || amountVal <= 0) return alert("請輸入有效金額");
+
+            try {
+                showStatus("交易處理中...", "info");
+                const weiAmount = ethers.parseEther(amountVal);
+                
+                // 呼叫合約 bid 函數，並附帶 ETH (value)
+                // require(_amount == msg.value, "amount must equal value");
+                const tx = await contract.bid(weiAmount, { value: weiAmount });
+                await tx.wait(); // 等待區塊確認
+                
+                showStatus("出價成功！", "success");
+                document.getElementById('bidAmount').value = "";
+                refreshData();
+            } catch (error) {
+                console.error(error);
+                let msg = error.reason || error.message;
+                // 轉換 Solidity require 錯誤訊息為中文提示
+                if(msg.includes("amount must > highestBid")) msg = "出價必須高於目前最高價";
+                if(msg.includes("auction already time out")) msg = "拍賣時間已過";
+                if(msg.includes("auction already finished")) msg = "拍賣已經結束";
+                showStatus("出價失敗: " + msg, "error");
+            }
+        });
+
+        // ---------------------------------------------------------
+        // 7. 結標功能 (function endAuction)
+        // ---------------------------------------------------------
+        endAuctionBtn.addEventListener('click', async () => {
+            try {
+                showStatus("正在結標...", "info");
+                // 呼叫合約 endAuction 函數
+                // require(msg.sender == owner, "only owner can end auction");
+                const tx = await contract.endAuction();
+                await tx.wait();
+                showStatus("已成功結束拍賣！", "success");
+                refreshData();
+            } catch (error) {
+                console.error(error);
+                // 通常錯誤是 "only owner can end auction"
+                showStatus("結標失敗 (只有管理員可操作或已結束)", "error");
+            }
+        });
+
+        // ---------------------------------------------------------
+        // 8. 倒數計時器邏輯
+        // ---------------------------------------------------------
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const now = Math.floor(Date.now() / 1000); // 取得當前 Unix Timestamp
+                const distance = auctionEndTime - now;
+                if (distance < 0) {
+                    document.getElementById('timerDisplay').innerText = "時間到 (等待結標)";
+                    clearInterval(timerInterval);
+                } else {
+                    const hours = Math.floor(distance / 3600);
+                    const minutes = Math.floor((distance % 3600) / 60);
+                    const seconds = distance % 60;
+                    document.getElementById('timerDisplay').innerText = 
+                        `${hours}時 ${minutes}分 ${seconds < 10 ? '0'+seconds : seconds}秒`;
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        // 顯示狀態訊息的輔助函式
+        function showStatus(msg, type) {
+            statusMsg.innerText = msg;
+            statusMsg.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700', 'bg-blue-100', 'text-blue-700');
+            if (type === 'success') statusMsg.classList.add('bg-green-100', 'text-green-700');
+            else if (type === 'error') statusMsg.classList.add('bg-red-100', 'text-red-700');
+            else statusMsg.classList.add('bg-blue-100', 'text-blue-700');
+            statusMsg.classList.remove('hidden');
+            setTimeout(() => statusMsg.classList.add('hidden'), 5000);
+        }
+
+        // ---------------------------------------------------------
+        // 9. Gemini AI 功能整合
+        // ---------------------------------------------------------
+
+        async function callGemini(promptText) {
+            aiResponseArea.classList.remove('hidden');
+            aiResponseArea.innerHTML = `
+                <div class="flex items-center gap-2 text-gray-500">
+                    <div class="animate-spin h-4 w-4 border-2 border-purple-500 rounded-full border-t-transparent"></div>
+                    AI 正在思考中...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }]
+                    })
+                });
+
+                if (!response.ok) throw new Error("API Request Failed");
+
+                const data = await response.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+                
+                // 使用 marked 渲染 Markdown 回應
+                aiResponseArea.innerHTML = marked.parse(aiText);
+            } catch (error) {
+                console.error(error);
+                aiResponseArea.innerHTML = `<span class="text-red-500">AI 連線錯誤，請稍後再試。</span>`;
+            }
+        }
+
+        // AI 功能 1: 拍賣官評論
+        document.getElementById('aiCommentaryBtn').addEventListener('click', () => {
+            const timeLeft = document.getElementById('timerDisplay').innerText;
+            const prompt = `
+                現在是一個正在進行的 NQU Web3 去中心化競標拍賣。
+                目前的最高出價是: ${currentHighestBid} ETH。
+                剩餘時間是: ${timeLeft}。
+                請扮演一位熱情激昂的拍賣官，用繁體中文寫一段簡短的現場解說 (約 50 字)。
+                語氣要緊張、刺激，鼓勵大家趕快出價。
+                如果有出價，強調這個價格很划算；如果時間快到了，強調最後機會。
+            `;
+            callGemini(prompt);
+        });
+
+        // AI 功能 2: 生成社群分享文
+        document.getElementById('aiShareBtn').addEventListener('click', () => {
+             const prompt = `
+                我剛剛在 NQU Web3 去中心化競標拍賣上出價了。
+                目前的價格是 ${currentHighestBid} ETH。
+                請幫我寫一段吸引人的社群媒體貼文 (例如 Twitter/X)，用繁體中文。
+                內容要包含：
+                1. 炫耀我參與了這場拍賣。
+                2. 提到目前的價格。
+                3. 使用適量的 Emoji (🔥, 🔨, 💎 等)。
+                4. 加上 hashtage #NQU #Web3 #Auction #ETH。
+                保持短促有力。
+            `;
+            callGemini(prompt);
+        });
+
+    </script>
+</body>
+</html>
