@@ -36,20 +36,53 @@
         <div class="flex justify-between items-center border-b pb-4">
             <!-- 顯示標題 -->
             <h1 class="text-2xl font-bold text-gray-800">🔨 NQU Web3 去中心化競標拍賣</h1>
-            <!-- 網路狀態顯示 -->
-            <span id="networkStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-500">未連線</span>
+            <!-- 網路狀態顯示 (將整合至下方連線設定區) -->
+            <span id="networkBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-500">未連線</span>
         </div>
 
-        <!-- 錢包連接區 -->
-        <div class="text-center">
-            <button id="connectBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg flex justify-center items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        <!-- 🔔 新增功能：連線設定與網路切換區塊 -->
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+            <h2 class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span id="connectBtnText">連接錢包</span>
-            </button>
-            <!-- 顯示使用者地址 -->
-            <p id="userAddress" class="mt-2 text-sm text-gray-600 break-all hidden"></p>
+                連線設定
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 網路選擇 -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">目標區塊鏈網路</label>
+                    <select id="networkSelect" class="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                        <option value="0xaa36a7" selected>Sepolia 測試鏈 (預設)</option>
+                        <option value="0x1">Ethereum 主網 (Mainnet)</option>
+                    </select>
+                </div>
+                
+                <!-- 錢包連接按鈕 -->
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">錢包狀態</label>
+                    <button id="connectBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition duration-300 shadow flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <span id="connectBtnText">連接 MetaMask</span>
+                    </button>
+                    <!-- 連接後顯示地址 -->
+                    <div id="walletInfo" class="hidden mt-1">
+                        <p class="text-xs text-green-600 font-semibold flex items-center gap-1">
+                            <span class="w-2 h-2 bg-green-500 rounded-full"></span> 已連接
+                        </p>
+                        <p id="userAddress" class="text-xs text-gray-500 font-mono break-all"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 目前鏈資訊顯示 -->
+            <div id="chainInfoDisplay" class="text-xs text-gray-400 border-t pt-2 hidden">
+                目前偵測網路: <span id="detectedNetwork" class="font-mono">尚未連接</span>
+            </div>
         </div>
 
         <!-- 拍賣資訊儀表板 -->
@@ -142,6 +175,12 @@
         
         // 已更新為指定之合約位址
         const contractAddress = "0x76e4203a0b866F7e5f37d4fD84Be3ABe69CAebb5"; 
+
+        // 定義支援的網路
+        const NETWORKS = {
+            "0xaa36a7": "Sepolia 測試鏈",
+            "0x1": "Ethereum 主網"
+        };
         
         // ---------------------------------------------------------
         // 2. 智能合約 ABI 定義 (對應 Solidity 介面)
@@ -174,16 +213,28 @@
         const connectBtn = document.getElementById('connectBtn');
         const connectBtnText = document.getElementById('connectBtnText');
         const userAddressDisplay = document.getElementById('userAddress');
+        const walletInfo = document.getElementById('walletInfo');
         const actionArea = document.getElementById('actionArea');
         const bidBtn = document.getElementById('bidBtn');
         const endAuctionBtn = document.getElementById('endAuctionBtn');
         const statusMsg = document.getElementById('statusMessage');
         const aiResponseArea = document.getElementById('aiResponseArea');
         const apiKeyInput = document.getElementById('apiKeyInput'); // 取得 API Key 輸入框
+        const networkSelect = document.getElementById('networkSelect'); // 網路選擇器
+        const detectedNetworkSpan = document.getElementById('detectedNetwork'); // 偵測到的網路
+        const chainInfoDisplay = document.getElementById('chainInfoDisplay');
 
         // ---------------------------------------------------------
-        // 4. 連接錢包功能
+        // 4. 連接錢包與網路切換功能 (核心修改)
         // ---------------------------------------------------------
+        
+        // 監聽網路選擇變更，若已連接則嘗試切換
+        networkSelect.addEventListener('change', async () => {
+            if (provider) {
+                await switchNetwork(networkSelect.value);
+            }
+        });
+
         connectBtn.addEventListener('click', async () => {
             if (typeof window.ethereum !== 'undefined') {
                 try {
@@ -191,8 +242,19 @@
                     const accounts = await provider.send("eth_requestAccounts", []);
                     userAccount = accounts[0];
                     signer = await provider.getSigner();
+                    
+                    // 1. 連接後，先檢查並切換到選定的網路
+                    const targetChainId = networkSelect.value;
+                    await switchNetwork(targetChainId);
+
                     updateUIConnected();
                     await initContract();
+
+                    // 監聽鏈切換事件 (MetaMask 外部切換時)
+                    window.ethereum.on('chainChanged', (chainId) => {
+                        window.location.reload(); // 鏈改變通常建議重整頁面
+                    });
+
                 } catch (error) {
                     showStatus("連接失敗: " + error.message, "error");
                 }
@@ -201,13 +263,62 @@
             }
         });
 
+        // 切換網路函式
+        async function switchNetwork(targetChainId) {
+            try {
+                const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                if (currentChainId !== targetChainId) {
+                    showStatus(`正在切換至 ${NETWORKS[targetChainId] || targetChainId}...`, "info");
+                    
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: targetChainId }],
+                        });
+                    } catch (switchError) {
+                        // 如果是 Sepolia (0xaa36a7) 且錢包沒新增，嘗試新增 (Mainnet 0x1 通常內建)
+                        if (switchError.code === 4902 && targetChainId === "0xaa36a7") {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0xaa36a7',
+                                    chainName: 'Sepolia Test Network',
+                                    nativeCurrency: { name: 'SepoliaETH', symbol: 'SEP', decimals: 18 },
+                                    rpcUrls: ['https://sepolia.infura.io/v3/'],
+                                    blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                }],
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                
+                // 更新顯示的鏈資訊
+                const newChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                detectedNetworkSpan.innerText = `${NETWORKS[newChainId] || newChainId}`;
+                chainInfoDisplay.classList.remove('hidden');
+
+            } catch (error) {
+                showStatus("網路切換失敗或使用者拒絕: " + error.message, "error");
+                // 如果切換失敗，將下拉選單改回實際的鏈，避免誤導
+                const actualChainId = await window.ethereum.request({ method: 'eth_chainId' });
+                if(networkSelect.querySelector(`option[value="${actualChainId}"]`)){
+                    networkSelect.value = actualChainId;
+                }
+            }
+        }
+
         function updateUIConnected() {
             connectBtn.classList.add('hidden');
-            userAddressDisplay.innerText = `已連接: ${userAccount}`;
-            userAddressDisplay.classList.remove('hidden');
-            document.getElementById('networkStatus').innerText = "已連線";
-            document.getElementById('networkStatus').classList.replace('bg-gray-200', 'bg-green-100');
-            document.getElementById('networkStatus').classList.replace('text-gray-500', 'text-green-700');
+            walletInfo.classList.remove('hidden');
+            userAddressDisplay.innerText = userAccount;
+            
+            const badge = document.getElementById('networkBadge');
+            badge.innerText = "已連線";
+            badge.classList.replace('bg-gray-200', 'bg-green-100');
+            badge.classList.replace('text-gray-500', 'text-green-700');
+            
             actionArea.classList.remove('opacity-50', 'pointer-events-none');
         }
 
@@ -220,20 +331,45 @@
                 return;
             }
 
-            contract = new ethers.Contract(contractAddress, contractABI, signer);
-            await refreshData();
-            endAuctionBtn.classList.remove('hidden');
+            // 在初始化合約前，再次確認網路是否正確
+            const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            const selectedChainId = networkSelect.value;
+            
+            if (currentChainId !== selectedChainId) {
+                showStatus(`錯誤：目前錢包網路 (${NETWORKS[currentChainId]||currentChainId}) 與設定 (${NETWORKS[selectedChainId]}) 不符，請切換。`, "error");
+                return;
+            }
 
-            contract.on("BidEvent", (_higher, highAmount) => {
-                showStatus(`新出價！ ${ethers.formatEther(highAmount)} ETH`, "success");
-                refreshData();
-            });
+            try {
+                contract = new ethers.Contract(contractAddress, contractABI, signer);
+                
+                // 測試呼叫一個 view function 來確認合約是否存在
+                // 如果合約在該鏈上不存在，這裡會報錯
+                await contract.highestBid(); // 測試讀取
 
-            contract.on("EndBidEvent", (_winner, _amount) => {
-                showStatus(`拍賣結束！得標者: ${_winner}`, "success");
-                refreshData();
-                stopTimer();
-            });
+                await refreshData();
+                endAuctionBtn.classList.remove('hidden');
+
+                contract.on("BidEvent", (_higher, highAmount) => {
+                    showStatus(`新出價！ ${ethers.formatEther(highAmount)} ETH`, "success");
+                    refreshData();
+                });
+
+                contract.on("EndBidEvent", (_winner, _amount) => {
+                    showStatus(`拍賣結束！得標者: ${_winner}`, "success");
+                    refreshData();
+                    stopTimer();
+                });
+            } catch (error) {
+                console.error(error);
+                // 判斷是否為「合約不存在」錯誤 (code=CALL_EXCEPTION)
+                if (error.code === 'CALL_EXCEPTION' || error.message.includes("code=BAD_DATA")) {
+                    showStatus(`⚠️ 錯誤：在目前的網路 (${NETWORKS[currentChainId] || currentChainId}) 上找不到合約。請確認合約地址正確，或切換至部署該合約的正確網路 (如 Sepolia)。`, "error");
+                    actionArea.classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    showStatus("合約載入錯誤: " + error.message, "error");
+                }
+            }
         }
 
         async function refreshData() {
