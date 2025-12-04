@@ -8,6 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Ethers.js v6 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+    <!-- 引入 QR Code 生成庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 引入 QR Code 掃描庫 -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
     <style>
         /* 自定義淡入動畫 */
         .fade-in {
@@ -17,19 +22,37 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        /* 掃描器樣式調整 */
+        #reader {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #reader__scan_region {
+            background: white;
+        }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen relative">
 
     <!-- 導航欄 -->
     <nav class="bg-blue-600 text-white shadow-lg">
         <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <!-- Logo 與 標題 -->
-            <div class="flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                </svg>
-                <h1 class="text-xl font-bold tracking-wide" id="navBankName">NQU Web3 去中心化銀行 DApp</h1>
+            
+            <!-- 左側區域：Logo、標題與錢包地址顯示 -->
+            <div class="flex flex-col md:flex-row items-center gap-3">
+                <div class="flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                    </svg>
+                    <h1 class="text-xl font-bold tracking-wide" id="navBankName">NQU Web3 去中心化銀行 DApp</h1>
+                </div>
+                
+                <!-- 導覽列錢包地址顯示 (預設隱藏) -->
+                <span id="navWalletBadge" class="hidden bg-blue-800/50 text-blue-50 px-3 py-1 rounded-full text-sm font-mono border border-blue-400/30 shadow-sm flex items-center">
+                    <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                    <span id="navWalletAddressText">--</span>
+                </span>
             </div>
 
             <!-- 按鈕區 -->
@@ -54,42 +77,98 @@
         
         <!-- 設定與狀態區 -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-8">
-            <label class="block text-sm font-medium text-slate-600 mb-2">智能合約地址</label>
-            <div class="flex flex-col md:flex-row gap-4">
-                <!-- 預設值 -->
-                <input type="text" id="contractAddressInput" value="0x698d5BA82D1A5A70e8358D6B3e943E0a98d91Eb7" placeholder="0x..." class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
-                <button onclick="updateContractSettings()" class="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-700 transition">
-                    載入合約
-                </button>
+            <h2 class="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider border-b pb-2">連線設定</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                
+                <!-- 網路選擇 -->
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">目標區塊鏈網路</label>
+                    <select id="networkSelect" onchange="updateExplorerLink()" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-slate-50">
+                        <option value="sepolia" selected>Sepolia 測試鏈</option>
+                        <option value="mainnet">Ethereum 主網</option>
+                        <option value="goerli">Goerli 測試鏈</option>
+                        <option value="localhost">Localhost (8545)</option>
+                    </select>
+                </div>
+
+                <!-- 合約地址輸入 (調整寬度以容納新按鈕) -->
+                <div class="md:col-span-6">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">智能合約地址</label>
+                    <input type="text" id="contractAddressInput" oninput="updateExplorerLink()" value="0x698d5BA82D1A5A70e8358D6B3e943E0a98d91Eb7" placeholder="0x..." class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm">
+                </div>
+
+                <!-- 按鈕區：載入 & 查看 -->
+                <div class="md:col-span-3 flex space-x-2">
+                    <button onclick="updateContractSettings()" class="flex-1 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition font-medium text-sm h-[38px] flex justify-center items-center shadow-sm">
+                        載入合約
+                    </button>
+                    <!-- 查看合約按鈕 -->
+                    <a id="explorerLink" href="#" target="_blank" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-100 hover:text-blue-600 text-slate-600 transition flex items-center justify-center h-[38px] bg-white shadow-sm" title="在區塊鏈瀏覽器中查看">
+                        <span class="mr-1 text-sm font-medium">查看</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
+                </div>
             </div>
-            <p id="networkStatus" class="text-sm text-slate-500 mt-2">尚未連接</p>
+            
+            <div class="mt-3 flex items-center justify-between">
+                <p id="networkStatus" class="text-sm text-slate-500">尚未連接</p>
+                <p id="chainInfo" class="text-xs text-slate-400 font-mono"></p>
+            </div>
         </div>
 
         <!-- 儀表板 (Dashboard) -->
-        <div id="dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 fade-in">
-            <!-- 銀行資訊卡片 -->
-            <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl p-6 shadow-lg">
-                <h3 class="text-lg font-semibold opacity-80 mb-1">銀行總儲備金</h3>
-                <div class="text-3xl font-bold mb-4" id="bankTotalBalance">0.0 ETH</div>
+        <!-- 修改為 3 欄佈局：銀行儲備 | 存款餘額 | 我的收款碼 -->
+        <div id="dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 fade-in">
+            
+            <!-- 1. 銀行資訊卡片 -->
+            <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-xl p-6 shadow-lg flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold opacity-80 mb-1">銀行總儲備金</h3>
+                    <div class="text-3xl font-bold mb-4" id="bankTotalBalance">0.0 ETH</div>
+                </div>
                 <div class="flex justify-between items-center text-sm border-t border-blue-400 pt-4 opacity-90">
                     <span>銀行名稱:</span>
                     <span id="displayBankName" class="font-semibold">載入中...</span>
                 </div>
             </div>
 
-            <!-- 用戶資訊卡片 -->
-            <div class="bg-white rounded-xl p-6 shadow-lg border border-slate-200">
-                <h3 class="text-lg font-semibold text-slate-600 mb-1">您的存款餘額</h3>
-                <div class="text-3xl font-bold text-slate-800 mb-4" id="userBalance">0.0 ETH</div>
+            <!-- 2. 用戶資訊卡片 -->
+            <div class="bg-white rounded-xl p-6 shadow-lg border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-600 mb-1">您的存款餘額</h3>
+                    <div class="text-3xl font-bold text-slate-800 mb-4" id="userBalance">0.0 ETH</div>
+                </div>
                 <div class="text-sm text-slate-500 border-t border-slate-100 pt-4 break-all">
                     帳戶: <span id="userAddress" class="font-mono text-xs text-blue-600">--</span>
+                </div>
+            </div>
+
+            <!-- 3. 新增：我的收款碼卡片 -->
+            <div class="bg-white rounded-xl p-4 shadow-lg border border-slate-200 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                <h3 class="text-sm font-bold text-slate-600 mb-2 w-full text-left border-b pb-1">我的收款碼 (Wallet QR)</h3>
+                
+                <!-- QR Code 容器 -->
+                <div id="qrcodeContainer" class="bg-white p-2 border border-slate-100 rounded-lg mb-2"></div>
+                
+                <div class="w-full">
+                     <p class="text-[10px] text-slate-400 mb-1">您的錢包位址</p>
+                     <div class="flex items-center bg-slate-50 rounded px-2 py-1 border border-slate-200">
+                         <span id="myAddressText" class="text-xs font-mono text-slate-600 truncate flex-1 text-left">--</span>
+                         <button onclick="copyMyAddress()" class="ml-2 text-blue-500 hover:text-blue-700 transition" title="複製地址">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                         </button>
+                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 操作區 (Actions) -->
         <div id="actions" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
-            
             <!-- 存款區塊 -->
             <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition border-t-4 border-green-500">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
@@ -133,7 +212,15 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1">收款人地址</label>
-                        <input type="text" id="transferTo" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono" placeholder="0x...">
+                        <!-- 修改：Input group 包含掃描按鈕 -->
+                        <div class="flex items-center">
+                            <input type="text" id="transferTo" class="w-full border border-slate-300 rounded-l-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono border-r-0" placeholder="0x...">
+                            <button onclick="openScanner()" class="bg-slate-200 border border-slate-300 rounded-r-lg px-3 py-2 text-slate-600 hover:bg-slate-300 transition" title="掃描 QR Code">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1">金額 (ETH)</label>
@@ -154,6 +241,22 @@
             </div>
         </div>
 
+        <!-- QR Code 掃描器 Modal (預設隱藏) -->
+        <div id="scannerModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 fade-in">
+            <div class="bg-white rounded-xl p-4 w-full max-w-md mx-4 shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-slate-800">掃描收款地址</h3>
+                    <button onclick="closeScanner()" class="text-slate-400 hover:text-red-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="reader" class="bg-slate-100 min-h-[250px] mb-4"></div>
+                <p class="text-xs text-center text-slate-500">請將錢包地址 QR Code 對準框線內</p>
+            </div>
+        </div>
+
     </main>
 
     <script>
@@ -162,8 +265,32 @@
         let signer;
         let contract;
         let userAccount;
-        // 設定預設合約地址
         let contractAddress = "0x698d5BA82D1A5A70e8358D6B3e943E0a98d91Eb7";
+        let html5QrCode; // 掃描器實例
+
+        // 網路配置定義：新增 explorer 欄位
+        const NETWORKS = {
+            sepolia: {
+                chainId: '0xaa36a7', 
+                name: 'Sepolia 測試鏈',
+                explorer: 'https://sepolia.etherscan.io'
+            },
+            mainnet: {
+                chainId: '0x1', 
+                name: 'Ethereum 主網',
+                explorer: 'https://etherscan.io'
+            },
+            goerli: {
+                chainId: '0x5',
+                name: 'Goerli 測試鏈',
+                explorer: 'https://goerli.etherscan.io'
+            },
+            localhost: {
+                chainId: '0x539', // 1337
+                name: 'Localhost',
+                explorer: ''
+            }
+        };
 
         // --- 2. 智能合約 ABI ---
         const contractABI = [
@@ -183,6 +310,13 @@
         const logContainer = document.getElementById('logContainer');
         const statusLog = document.getElementById('statusLog');
         const addressInput = document.getElementById('contractAddressInput');
+        const navWalletBadge = document.getElementById('navWalletBadge');
+        const navWalletAddressText = document.getElementById('navWalletAddressText');
+        const networkSelect = document.getElementById('networkSelect');
+        const chainInfo = document.getElementById('chainInfo');
+        const explorerLink = document.getElementById('explorerLink');
+        // 新增參考
+        const scannerModal = document.getElementById('scannerModal');
 
         // --- 4. 初始化 ---
         
@@ -194,19 +328,82 @@
             } else {
                 addressInput.value = contractAddress;
             }
+            
+            const savedNetwork = localStorage.getItem('bank_dapp_network');
+            if(savedNetwork) {
+                networkSelect.value = savedNetwork;
+            }
+
+            updateExplorerLink();
+        }
+
+        // 更新瀏覽器連結函式
+        function updateExplorerLink() {
+            const selectedNetworkKey = networkSelect.value;
+            const currentAddr = addressInput.value.trim();
+            const networkConfig = NETWORKS[selectedNetworkKey];
+
+            if (networkConfig && networkConfig.explorer && ethers.isAddress(currentAddr)) {
+                const url = `${networkConfig.explorer}/address/${currentAddr}`;
+                explorerLink.href = url;
+                explorerLink.classList.remove('pointer-events-none', 'opacity-50');
+            } else {
+                explorerLink.href = "#";
+                explorerLink.classList.add('pointer-events-none', 'opacity-50');
+            }
+        }
+
+        // 檢查並切換網路
+        async function checkAndSwitchNetwork(targetNetworkKey) {
+            const targetConfig = NETWORKS[targetNetworkKey];
+            if (!targetConfig) return true; 
+
+            const currentNetwork = await provider.getNetwork();
+            const currentChainIdHex = "0x" + currentNetwork.chainId.toString(16);
+
+            if (currentChainIdHex.toLowerCase() !== targetConfig.chainId.toLowerCase()) {
+                try {
+                    log(`偵測到網路不符，請求切換至 ${targetConfig.name}...`, "info");
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: targetConfig.chainId }],
+                    });
+                    return true;
+                } catch (switchError) {
+                    if (switchError.code === 4902) {
+                        alert(`請先在您的 MetaMask 中新增 ${targetConfig.name} 網路設定。`);
+                    } else {
+                        console.error(switchError);
+                        alert(`無法切換網路: ${switchError.message}`);
+                    }
+                    return false;
+                }
+            }
+            return true;
         }
 
         async function updateContractSettings() {
             contractAddress = addressInput.value.trim();
+            const selectedNetwork = networkSelect.value;
+            
             if (!ethers.isAddress(contractAddress)) {
                 log("錯誤: 無效的合約地址格式", "error");
                 return;
             }
+            
             localStorage.setItem('bank_dapp_address', contractAddress);
-            log(`合約地址已設定: ${contractAddress}`, "info");
+            localStorage.setItem('bank_dapp_network', selectedNetwork);
+            
+            updateExplorerLink();
+
+            log(`設定更新: 地址=${contractAddress.slice(0,6)}..., 網路=${selectedNetwork}`, "info");
             
             if (provider) {
-                await initContract();
+                const switched = await checkAndSwitchNetwork(selectedNetwork);
+                if(switched) {
+                    signer = await provider.getSigner();
+                    await initContract();
+                }
             } else {
                 await connectWallet();
             }
@@ -219,6 +416,8 @@
             }
 
             contractAddress = addressInput.value.trim();
+            const selectedNetwork = networkSelect.value;
+
             if (!contractAddress) {
                 alert("請先輸入並載入合約地址！");
                 return;
@@ -231,29 +430,42 @@
                 provider = new ethers.BrowserProvider(window.ethereum);
                 const accounts = await provider.send("eth_requestAccounts", []);
                 userAccount = accounts[0];
+                
+                const switched = await checkAndSwitchNetwork(selectedNetwork);
+                if (!switched) {
+                    throw new Error("網路切換失敗，請確認錢包網路設定。");
+                }
+
                 signer = await provider.getSigner();
 
-                // 更新 UI 狀態：已連接
                 document.getElementById('networkStatus').innerText = `已連接: ${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
                 document.getElementById('userAddress').innerText = userAccount;
                 
-                // 按鈕樣式變更
+                // 生成我的收款 QR Code
+                generateMyQRCode(userAccount);
+                document.getElementById('myAddressText').innerText = userAccount;
+
+                const network = await provider.getNetwork();
+                chainInfo.innerText = `Chain ID: ${network.chainId.toString()}`;
+
+                const shortAddress = `${userAccount.slice(0,6)}...${userAccount.slice(-4)}`;
+                navWalletAddressText.innerText = shortAddress;
+                navWalletBadge.classList.remove('hidden');
+                
                 connectBtn.innerHTML = `
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     錢包已連接
                 `;
                 connectBtn.classList.replace('bg-blue-600', 'bg-green-600');
-                connectBtn.onclick = null; // 禁用連接按鈕點擊
+                connectBtn.onclick = null;
                 
-                // 顯示斷開按鈕
                 disconnectBtn.classList.remove('hidden');
-
-                // 顯示功能區
                 dashboard.classList.remove('hidden');
                 actions.classList.remove('hidden');
                 statusLog.classList.remove('hidden');
 
-                // 初始化合約
+                updateExplorerLink();
+                
                 await initContract();
 
             } catch (error) {
@@ -263,35 +475,29 @@
             }
         }
 
-        // 新增：斷開連線函式
         function disconnectWallet() {
-            // 清除變數
             provider = null;
             signer = null;
             contract = null;
             userAccount = null;
 
-            // 重置 UI
             document.getElementById('networkStatus').innerText = "尚未連接";
+            document.getElementById('chainInfo').innerText = "";
             document.getElementById('userAddress').innerText = "--";
             document.getElementById('bankTotalBalance').innerText = "0.0 ETH";
             document.getElementById('userBalance').innerText = "0.0 ETH";
             document.getElementById('displayBankName').innerText = "載入中...";
+            
+            navWalletBadge.classList.add('hidden');
+            navWalletAddressText.innerText = "--";
 
-            // 隱藏區塊
             dashboard.classList.add('hidden');
             actions.classList.add('hidden');
             statusLog.classList.add('hidden');
-            logContainer.innerHTML = ""; // 清空日誌
+            logContainer.innerHTML = "";
 
-            // 重置按鈕
             resetConnectButton();
-            
-            // 隱藏斷開按鈕
             disconnectBtn.classList.add('hidden');
-            
-            // 提示
-            // alert("已斷開 DApp 連線 (請注意 MetaMask 仍可能保持登入狀態)");
         }
 
         function resetConnectButton() {
@@ -302,16 +508,22 @@
             connectBtn.disabled = false;
             connectBtn.classList.remove('bg-green-600');
             connectBtn.classList.add('bg-blue-600');
-            connectBtn.onclick = connectWallet; // 恢復點擊事件
+            connectBtn.onclick = connectWallet;
         }
 
         async function initContract() {
             try {
+                const code = await provider.getCode(contractAddress);
+                if (code === "0x") {
+                    throw new Error("找不到合約代碼！請確認：\n1. 地址是否正確\n2. 是否選對了區塊鏈網路 (Sepolia/Mainnet)");
+                }
+
                 contract = new ethers.Contract(contractAddress, contractABI, signer);
-                log("合約實例化成功", "success");
+                log("合約實例化成功，正在讀取數據...", "success");
                 await refreshData();
             } catch (error) {
                 log(`合約初始化失敗: ${error.message}`, "error");
+                alert(`錯誤：${error.message}`);
             }
         }
 
@@ -321,27 +533,22 @@
             if (!contract) return;
 
             try {
-                // 1. 獲取銀行名稱
                 const name = await contract.bankName();
                 document.getElementById('displayBankName').innerText = name;
                 
-                // 注意：這裡移除了覆蓋導航標題的程式碼，保留 "NQU Web3 去中心化銀行 DApp"
-                // document.getElementById('navBankName').innerText = `${name} DApp`; 
-
-                // 2. 獲取銀行總存款
                 const [ethBalance, totalBookAmount] = await contract.getBalance();
                 document.getElementById('bankTotalBalance').innerText = `${ethers.formatEther(totalBookAmount)} ETH`;
 
-                // 3. 獲取用戶餘額
                 const balance = await contract.balanceOf(userAccount);
                 document.getElementById('userBalance').innerText = `${ethers.formatEther(balance)} ETH`;
 
             } catch (error) {
                 console.error("數據刷新失敗:", error);
+                log("數據讀取失敗，可能是網路不穩或合約錯誤", "error");
             }
         }
 
-        // --- 6. 寫入操作函式 (交易) ---
+        // --- 6. 寫入操作函式 ---
 
         function setLoading(btnId, isLoading) {
             const btn = document.getElementById(btnId);
@@ -459,9 +666,79 @@
         }
 
         if (window.ethereum) {
-            // 切換帳號時自動重新載入頁面 (這也是一種斷開重連的機制)
             window.ethereum.on('accountsChanged', () => window.location.reload());
             window.ethereum.on('chainChanged', () => window.location.reload());
+        }
+
+        // --- 7. QR Code 功能實作 ---
+
+        // 生成我的 QR Code
+        function generateMyQRCode(address) {
+            const container = document.getElementById('qrcodeContainer');
+            container.innerHTML = ""; // 清空舊的
+            
+            new QRCode(container, {
+                text: address,
+                width: 110,
+                height: 110,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        // 複製地址功能
+        function copyMyAddress() {
+            if (!userAccount) return;
+            navigator.clipboard.writeText(userAccount).then(() => {
+                log("地址已複製到剪貼簿", "success");
+                alert("地址已複製！");
+            }).catch(err => {
+                console.error('複製失敗: ', err);
+            });
+        }
+
+        // 開啟掃描器
+        function openScanner() {
+            scannerModal.classList.remove('hidden');
+            
+            // 初始化掃描器
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => {
+                console.error("無法啟動相機", err);
+                alert("無法啟動相機，請確認瀏覽器權限");
+                closeScanner();
+            });
+        }
+
+        // 掃描成功回調
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Scan result: ${decodedText}`, decodedResult);
+            
+            // 填入地址欄位
+            document.getElementById('transferTo').value = decodedText;
+            
+            // 關閉掃描器
+            closeScanner();
+            log(`QR Code 掃描成功: ${decodedText.slice(0,6)}...`, "success");
+        }
+
+        // 關閉掃描器
+        function closeScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    scannerModal.classList.add('hidden');
+                }).catch(err => {
+                    console.error("停止掃描器失敗", err);
+                    scannerModal.classList.add('hidden');
+                });
+            } else {
+                scannerModal.classList.add('hidden');
+            }
         }
 
     </script>
