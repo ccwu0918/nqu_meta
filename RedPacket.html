@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NQU金門大學區塊鏈紅包 DApp</title>
+    <title>🧧 NQU金門大學區塊鏈搶紅包 DApp</title>
     <!-- 引入 Tailwind CSS 進行快速樣式設計與 RWD -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Ethers.js V6 用於區塊鏈互動 -->
@@ -171,8 +171,7 @@
             // 如果已經連接錢包，則嘗試切換
             if (userAddress) {
                 await switchNetwork(targetChainId);
-                // 切換後重新讀取數據(如果有填地址的話)
-                // 這裡暫時不自動讀取，避免用戶還沒準備好
+                // 切換後暫時不自動讀取，避免 UI 混亂，讓用戶手動點擊
             }
         }
 
@@ -258,6 +257,12 @@
             try {
                 showStatus("讀取合約數據中...", "normal");
                 
+                // 檢查該地址是否有合約代碼 (避免地址正確但該鏈上無合約的情況)
+                const code = await provider.getCode(addressInput);
+                if (code === '0x') {
+                    throw new Error("CONTRACT_NOT_FOUND");
+                }
+
                 // 實例化合約
                 contract = new ethers.Contract(addressInput, ABI, signer);
 
@@ -300,10 +305,12 @@
 
             } catch (err) {
                 console.error(err);
-                if (err.code === 'BAD_DATA' || err.message.includes("network")) {
-                    showStatus("讀取失敗：可能是地址錯誤或網路不符。請檢查是否在正確的鏈上。", "error");
+                if (err.message === "CONTRACT_NOT_FOUND") {
+                    showStatus("❌ 找不到合約！請確認地址是否正確，或是否選對了區塊鏈網路。", "error");
+                } else if (err.code === 'BAD_DATA' || err.message.includes("network")) {
+                    showStatus("讀取失敗：可能是地址錯誤或網路不符。", "error");
                 } else {
-                    showStatus("讀取失敗，請確認地址與網路。", "error");
+                    showStatus("讀取失敗：" + (err.reason || err.message), "error");
                 }
             }
         }
