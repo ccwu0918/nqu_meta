@@ -33,7 +33,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                 </svg>
             </div>
-            <h1 class="text-3xl font-bold text-yellow-100 tracking-wider">🧧 NQU金門大學區塊鏈搶紅包</h1>
+            <!-- 修改標題 -->
+            <h1 class="text-2xl sm:text-3xl font-bold text-yellow-100 tracking-wider">🧧 NQU金門大學區塊鏈搶紅包</h1>
             <p class="text-red-200 text-sm mt-2">公平、透明、拚手氣</p>
         </div>
 
@@ -52,14 +53,27 @@
             </div>
 
             <!-- 2. 合約載入區 -->
-            <div id="contractSection" class="opacity-50 pointer-events-none transition-opacity duration-300">
-                <label class="block text-sm font-semibold text-slate-600 mb-1 ml-1">紅包合約地址</label>
-                <div class="flex gap-2 flex-col sm:flex-row">
-                    <!-- 這裡設定了預設值 -->
-                    <input type="text" id="contractAddress" value="0x3F69Ef1F933981B6A10033ee518e055383403515" placeholder="例如: 0x123..." class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-mono text-slate-600">
-                    <button onclick="loadContractData()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition sm:w-auto w-full">
-                        讀取
-                    </button>
+            <div id="contractSection" class="opacity-50 pointer-events-none transition-opacity duration-300 space-y-4">
+                
+                <!-- 新增：網路選擇下拉選單 -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-1 ml-1">選擇合約所在網路</label>
+                    <select id="networkSelect" onchange="handleNetworkChange()" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-medium text-slate-700">
+                        <option value="0xaa36a7" selected>Sepolia 測試鏈 (預設)</option>
+                        <option value="0x1">Ethereum 主網 (Mainnet)</option>
+                        <option value="custom">其他 / 自定義網路</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-600 mb-1 ml-1">紅包合約地址</label>
+                    <div class="flex gap-2 flex-col sm:flex-row">
+                        <!-- 這裡設定了預設值 -->
+                        <input type="text" id="contractAddress" value="0x3F69Ef1F933981B6A10033ee518e055383403515" placeholder="例如: 0x123..." class="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-mono text-slate-600">
+                        <button onclick="loadContractData()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition sm:w-auto w-full whitespace-nowrap">
+                            讀取
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -127,6 +141,42 @@
         ];
 
         // -----------------------------------------------------
+        // 輔助函式：切換網路
+        // -----------------------------------------------------
+        async function switchNetwork(chainIdHex) {
+            if (!window.ethereum) return;
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: chainIdHex }],
+                });
+                return true;
+            } catch (switchError) {
+                // 如果是 4902 錯誤，代表使用者尚未新增此網路到 MetaMask
+                if (switchError.code === 4902) {
+                    showStatus("請在 MetaMask 中手動新增此網路。", "error");
+                } else {
+                    console.error("切換網路失敗:", switchError);
+                    showStatus("切換網路失敗，請手動切換。", "error");
+                }
+                return false;
+            }
+        }
+
+        // 監聽下拉選單變更
+        async function handleNetworkChange() {
+            const targetChainId = document.getElementById('networkSelect').value;
+            if (targetChainId === 'custom') return; // 自定義不強制切換
+
+            // 如果已經連接錢包，則嘗試切換
+            if (userAddress) {
+                await switchNetwork(targetChainId);
+                // 切換後重新讀取數據(如果有填地址的話)
+                // 這裡暫時不自動讀取，避免用戶還沒準備好
+            }
+        }
+
+        // -----------------------------------------------------
         // 1. 連接錢包
         // -----------------------------------------------------
         async function connectWallet() {
@@ -143,6 +193,23 @@
                 const accounts = await provider.send("eth_requestAccounts", []);
                 userAddress = accounts[0];
                 
+                // 檢查並切換網路
+                const targetChainId = document.getElementById('networkSelect').value;
+                if (targetChainId !== 'custom') {
+                    // 取得當前網路 ID
+                    const network = await provider.getNetwork();
+                    // network.chainId 回傳的是 bigint, 轉成 hex string 比較
+                    const currentChainIdHex = "0x" + network.chainId.toString(16);
+                    
+                    // 簡易比較 (注意大小寫)
+                    if (currentChainIdHex.toLowerCase() !== targetChainId.toLowerCase()) {
+                        showStatus("正在切換至目標網路...", "normal");
+                        await switchNetwork(targetChainId);
+                        // 切換後重新建立 provider 以確保狀態更新
+                        provider = new ethers.BrowserProvider(window.ethereum);
+                    }
+                }
+
                 // 建立 Signer (用於發送交易)
                 signer = await provider.getSigner();
 
@@ -168,6 +235,20 @@
         // -----------------------------------------------------
         async function loadContractData() {
             const addressInput = document.getElementById('contractAddress').value;
+            const targetChainId = document.getElementById('networkSelect').value;
+
+            // 再次檢查網路 (防止用戶連接後又手動切回去)
+            if (targetChainId !== 'custom' && provider) {
+                 const network = await provider.getNetwork();
+                 const currentChainIdHex = "0x" + network.chainId.toString(16);
+                 if (currentChainIdHex.toLowerCase() !== targetChainId.toLowerCase()) {
+                     showStatus("網路不符，正在切換...", "error");
+                     await switchNetwork(targetChainId);
+                     // 重新初始化 signer
+                     provider = new ethers.BrowserProvider(window.ethereum);
+                     signer = await provider.getSigner();
+                 }
+            }
             
             if (!ethers.isAddress(addressInput)) {
                 showStatus("無效的合約地址！", "error");
@@ -219,7 +300,11 @@
 
             } catch (err) {
                 console.error(err);
-                showStatus("讀取失敗，請確認地址與網路。", "error");
+                if (err.code === 'BAD_DATA' || err.message.includes("network")) {
+                    showStatus("讀取失敗：可能是地址錯誤或網路不符。請檢查是否在正確的鏈上。", "error");
+                } else {
+                    showStatus("讀取失敗，請確認地址與網路。", "error");
+                }
             }
         }
 
@@ -298,10 +383,16 @@
             }
         }
 
-        // 監聽 MetaMask 帳戶切換
+        // 監聽 MetaMask 帳戶與網路切換
         if (window.ethereum) {
             window.ethereum.on('accountsChanged', (accounts) => {
-                window.location.reload(); // 簡單處理：切換帳戶就重整頁面
+                window.location.reload(); 
+            });
+            
+            window.ethereum.on('chainChanged', (chainId) => {
+                // 網路切換時，我們可以選擇重整頁面，或者只是重新建立 provider
+                // 為求簡單與穩定，這裡選擇重整
+                window.location.reload();
             });
         }
     </script>
